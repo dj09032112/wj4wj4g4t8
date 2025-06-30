@@ -757,9 +757,9 @@
                 const now = Date.now();
                 
                 // 如果是指針模式且超過超時時間，切換回陀螺儀
-                // 只在行動版且有陀螺儀權限時才切換
+                // 只在桌面版且有陀螺儀權限時才切換
                 if (this.currentControlMode === 'pointer' && 
-                    this.isMobile &&
+                    !this.isMobile &&
                     (now - this.lastPointerTime) > this.POINTER_TIMEOUT &&
                     this.gyroPermissionGranted) {
                     
@@ -1173,14 +1173,9 @@
 
                 // 🎮 觸控事件處理（僅用於互動，不切換控制模式）
                 const handleTouchEvent = (event) => {
-                    // 觸控事件不切換控制模式，保持當前模式
+                    // 行動版觸控事件完全不影響控制模式，保持陀螺儀控制
                     const x = event.touches?.[0]?.clientX || 0;
                     const y = event.touches?.[0]?.clientY || 0;
-                    
-                    // 如果當前是指針模式，更新控制值
-                    if (this.currentControlMode === 'pointer') {
-                        this.updateFromPointer(x, y);
-                    }
                     
                     // 🕹️ 局部視角控制 - 只在局部視角生效
                     if (this.viewState === 'detail' && !this.isTransitioning) {
@@ -1230,8 +1225,10 @@
                             const gyroSuccess = await this.startGyroControl();
                             if (gyroSuccess) {
                                 this.currentControlMode = 'gyro';
+                                console.log('🎮 行動版：陀螺儀控制已啟用，將保持此模式');
                             } else {
                                 this.currentControlMode = 'pointer';
+                                console.log('🎮 行動版：陀螺儀權限被拒絕，使用指針控制');
                             }
                         } else {
                             // 桌面版直接設定為指針控制模式
@@ -1249,24 +1246,22 @@
                 document.addEventListener('mousedown', handleFirstInteraction);
                 document.addEventListener('touchstart', handleFirstInteraction);
 
-                // 🎮 滑鼠事件監聽（用於自動切換到 Pointer 模式）
-                const mouseEvents = ['mousedown', 'mousemove', 'wheel'];
-                mouseEvents.forEach(eventType => {
-                    document.addEventListener(eventType, (event) => {
-                        // 只在偵測到「真實滑鼠」事件時才切換
-                        // 桌面版滑鼠事件沒有 pointerType，行動版需要檢查
-                        if (this.isMobile && event.pointerType && event.pointerType !== 'mouse') return;
-                        
-                        // 記錄最後滑鼠互動時間
-                        this.lastPointerTime = Date.now();
-                        
-                        // 如果當前是陀螺儀模式，切換到指針模式
-                        if (this.currentControlMode === 'gyro') {
-                            this.currentControlMode = 'pointer';
-                            console.log('🎮 檢測到滑鼠互動，切換到指針控制模式');
-                        }
-                    }, { passive: true });
-                });
+                // 🎮 滑鼠事件監聽（僅桌面版，用於自動切換到 Pointer 模式）
+                if (!this.isMobile) {
+                    const mouseEvents = ['mousedown', 'mousemove', 'wheel'];
+                    mouseEvents.forEach(eventType => {
+                        document.addEventListener(eventType, (event) => {
+                            // 記錄最後滑鼠互動時間
+                            this.lastPointerTime = Date.now();
+                            
+                            // 如果當前是陀螺儀模式，切換到指針模式
+                            if (this.currentControlMode === 'gyro') {
+                                this.currentControlMode = 'pointer';
+                                console.log('🎮 檢測到滑鼠互動，切換到指針控制模式');
+                            }
+                        }, { passive: true });
+                    });
+                }
 
                 // 視窗大小調整
                 window.addEventListener('resize', () => {
@@ -2488,16 +2483,28 @@
                 
                 // 滑鼠按下事件
                 this.renderer.domElement.addEventListener('pointerdown', (event) => {
+                    // 行動版：阻止事件冒泡，避免影響控制模式
+                    if (this.isMobile) {
+                        event.stopPropagation();
+                    }
                     this.handleDotPointerDown(event);
                 });
                 
                 // 滑鼠放開事件
                 this.renderer.domElement.addEventListener('pointerup', (event) => {
+                    // 行動版：阻止事件冒泡，避免影響控制模式
+                    if (this.isMobile) {
+                        event.stopPropagation();
+                    }
                     this.handleDotPointerUp(event);
                 });
                 
                 // 滑鼠離開時也要放開（避免拖拽離開後卡住）
                 this.renderer.domElement.addEventListener('pointerleave', (event) => {
+                    // 行動版：阻止事件冒泡，避免影響控制模式
+                    if (this.isMobile) {
+                        event.stopPropagation();
+                    }
                     this.handleDotPointerUp(event);
                 });
                 
@@ -2989,9 +2996,14 @@
                     parallaxViewerInstance.currentControlMode = 'gyro';
                     console.log('🎮 成功啟用陀螺儀控制');
                 } else {
-                    // 權限被拒絕，保持指針控制模式
-                    parallaxViewerInstance.currentControlMode = 'pointer';
-                    console.log('🎮 陀螺儀權限被拒絕，使用指針控制模式');
+                    // 權限被拒絕，行動版保持陀螺儀模式，桌面版使用指針控制
+                    if (parallaxViewerInstance.isMobile) {
+                        parallaxViewerInstance.currentControlMode = 'gyro';
+                        console.log('🎮 行動版：陀螺儀權限被拒絕，但仍保持陀螺儀控制模式');
+                    } else {
+                        parallaxViewerInstance.currentControlMode = 'pointer';
+                        console.log('🎮 桌面版：陀螺儀權限被拒絕，使用指針控制模式');
+                    }
                 }
             }
         }

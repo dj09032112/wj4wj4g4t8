@@ -380,6 +380,10 @@
                 this.inertiaTarget = { x: 0, y: 0 }; // 慣性目標位置
                 this.isInertiaActive = false; // 是否正在執行慣性緩衝
                 this.orientation = { x: 0, y: 0 };
+                // 🎛️ 相對角度算法基準值
+                this.baseAlpha = null;
+                this.baseBeta = null;
+                this.baseGamma = null;
                 this.isMobile = this.detectMobile();
                 this.loadingComplete = false;
                 this.loadedImages = 0;
@@ -853,20 +857,42 @@
                         }
                     });
                 } else {
-                    // 裝置方向事件
+                    // 🎛️ 相對角度算法的裝置方向事件
                     if (window.DeviceOrientationEvent) {
                         window.addEventListener('deviceorientation', (event) => {
-                            this.orientation.x = event.gamma ? event.gamma / 90 : 0; // 左右傾斜
-                            this.orientation.y = event.beta ? (event.beta - 45) / 45 : 0; // 前後傾斜
+                            // 第一次進來時建立基準值
+                            if (this.baseAlpha === null) {
+                                this.baseAlpha = event.alpha || 0;
+                                this.baseBeta = event.beta || 0;
+                                this.baseGamma = event.gamma || 0;
+                                console.log('🎛️ 建立裝置方向基準值:', {
+                                    alpha: this.baseAlpha,
+                                    beta: this.baseBeta,
+                                    gamma: this.baseGamma
+                                });
+                                return; // 第一次不計算差值
+                            }
                             
-                            // 限制範圍
-                            this.orientation.x = Math.max(-1, Math.min(1, this.orientation.x));
-                            this.orientation.y = Math.max(-1, Math.min(1, this.orientation.y));
+                            // 計算與基準值的差值
+                            const deltaAlpha = (event.alpha || 0) - this.baseAlpha;  // 水平旋轉
+                            const deltaBeta = (event.beta || 0) - this.baseBeta;     // 前後傾
+                            const deltaGamma = (event.gamma || 0) - this.baseGamma; // 左右傾
+                            
+                            // 將差值映射到視差位移範圍 (-1 ~ +1)
+                            const offsetX = THREE.MathUtils.clamp(deltaGamma / 45, -1, 1); // 左右傾對應X軸
+                            const offsetY = THREE.MathUtils.clamp(deltaBeta / 45, -1, 1);  // 前後傾對應Y軸
+                            
+                            // 更新orientation值
+                            this.orientation.x = offsetX;
+                            this.orientation.y = offsetY;
                             
                             // 🕹️ 局部視角控制 - 只在局部視角生效
                             if (this.viewState === 'detail' && !this.isTransitioning) {
                                 this.updateDetailViewControl(this.orientation.x, this.orientation.y);
                             }
+                            
+                            // 可選：添加調試資訊
+                            // console.log('🎛️ 相對角度:', { deltaGamma, deltaBeta, offsetX, offsetY });
                         });
                     }
                 }

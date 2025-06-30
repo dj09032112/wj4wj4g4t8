@@ -394,8 +394,6 @@
                 
                 // 🎯 平板混合控制系統
                 this.currentControlMode = 'none';     // 'gyro' | 'pointer' | 'none'
-                this.isGyroActive = false;            // 陀螺儀是否啟用
-                this.isPointerActive = false;         // 指標控制是否啟用
                 this.lastPointerTime = 0;             // 最後指標事件時間
                 this.POINTER_TIMEOUT = 300;           // 指標靜默超時 (ms)
                 this.gyroPermissionGranted = false;   // 陀螺儀權限是否已授權
@@ -405,6 +403,7 @@
                 this.currentOffsetY = 0;              // 當前Y軸偏移
                 this.targetOffsetX = 0;               // 目標X軸偏移
                 this.targetOffsetY = 0;               // 目標Y軸偏移
+                this.pointerOffset = { x: 0, y: 0 };  // 指標偏移量
                 this.CONTROL_LERP_SPEED = 0.1;        // 控制切換時的平滑插值速度
                 this.loadingComplete = false;
                 this.loadedImages = 0;
@@ -567,14 +566,14 @@
 
             // 🎯 ================== 平板混合控制系統 ==================
 
-            // 🎯 啟動陀螺儀控制
+            // 🎯 切換到陀螺儀控制模式
             async startGyroControl() {
-                if (this.isGyroActive) return;
+                if (this.currentControlMode === 'gyro') return;
                 
-                console.log('🎯 嘗試啟動陀螺儀控制...');
+                console.log('🎯 切換到陀螺儀控制模式...');
                 
-                // iOS 13+ 需要權限授權
-                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                // iOS 13+ 需要權限授權（僅第一次）
+                if (!this.gyroPermissionGranted && typeof DeviceOrientationEvent.requestPermission === 'function') {
                     try {
                         const permission = await DeviceOrientationEvent.requestPermission();
                         if (permission !== 'granted') {
@@ -588,44 +587,22 @@
                     }
                 }
                 
-                this.isGyroActive = true;
-                this.isPointerActive = false;
                 this.currentControlMode = 'gyro';
-                console.log('🎯 陀螺儀控制已啟動');
+                console.log('🎯 陀螺儀控制模式已啟動');
                 return true;
             }
 
-            // 🎯 停止陀螺儀控制
-            stopGyroControl() {
-                if (!this.isGyroActive) return;
-                
-                this.isGyroActive = false;
-                console.log('🎯 陀螺儀控制已停止');
-            }
-
-            // 🎯 啟動指標控制
+            // 🎯 切換到指標控制模式
             startPointerControl() {
-                if (this.isPointerActive) return;
+                if (this.currentControlMode === 'pointer') return;
                 
-                this.isPointerActive = true;
-                this.isGyroActive = false;
                 this.currentControlMode = 'pointer';
                 this.lastPointerTime = Date.now();
-                console.log('🎯 指標控制已啟動');
+                console.log('🎯 指標控制模式已啟動');
             }
 
-            // 🎯 停止指標控制
-            stopPointerControl() {
-                if (!this.isPointerActive) return;
-                
-                this.isPointerActive = false;
-                console.log('🎯 指標控制已停止');
-            }
-
-            // 🎯 陀螺儀數據更新
+            // 🎯 陀螺儀數據更新（總是運行，但只在陀螺儀模式時輸出到targetOffset）
             gyroUpdate(alpha, beta, gamma) {
-                if (!this.isGyroActive) return;
-                
                 // 根據螢幕方向轉換為統一的X/Y軸
                 const { x, y } = this.transformGyroData(alpha, beta, gamma);
 
@@ -633,6 +610,11 @@
                 if (this.baseX === null) {
                     this.baseX = x;
                     this.baseY = y;
+                    console.log('🎛️ 建立統一基準值:', {
+                        orientation: this.currentOrientation,
+                        baseX: this.baseX.toFixed(2),
+                        baseY: this.baseY.toFixed(2)
+                    });
                     return;
                 }
 
@@ -653,19 +635,19 @@
                     deltaX = -deltaX;
                 }
 
-                // 低通濾波平滑處理
+                // 低通濾波平滑處理（總是更新）
                 this.smoothedDelta.x = this.smoothedDelta.x * (1 - this.SMOOTH_ALPHA) + deltaX * this.SMOOTH_ALPHA;
                 this.smoothedDelta.y = this.smoothedDelta.y * (1 - this.SMOOTH_ALPHA) + deltaY * this.SMOOTH_ALPHA;
 
-                // 更新目標偏移量
-                this.targetOffsetX = this.smoothedDelta.x;
-                this.targetOffsetY = this.smoothedDelta.y;
+                // 🎯 只在陀螺儀控制模式時更新目標偏移量
+                if (this.currentControlMode === 'gyro') {
+                    this.targetOffsetX = this.smoothedDelta.x;
+                    this.targetOffsetY = this.smoothedDelta.y;
+                }
             }
 
             // 🎯 指標數據更新
             pointerUpdate(clientX, clientY) {
-                if (!this.isPointerActive) return;
-                
                 // 更新最後指標事件時間
                 this.lastPointerTime = Date.now();
                 
@@ -673,9 +655,14 @@
                 const normalizedX = (clientX / window.innerWidth) * 2 - 1;
                 const normalizedY = -((clientY / window.innerHeight) * 2 - 1);
                 
-                // 更新目標偏移量
-                this.targetOffsetX = normalizedX;
-                this.targetOffsetY = normalizedY;
+                // 存儲指標偏移量
+                this.pointerOffset = { x: normalizedX, y: normalizedY };
+                
+                // 🎯 只在指標控制模式時更新目標偏移量
+                if (this.currentControlMode === 'pointer') {
+                    this.targetOffsetX = normalizedX;
+                    this.targetOffsetY = normalizedY;
+                }
             }
 
             // 🎯 檢查並切換控制模式 (每100ms呼叫)
@@ -685,8 +672,7 @@
                 const now = Date.now();
                 
                 // 如果目前是指標控制且超過靜默時間，切回陀螺儀
-                if (this.isPointerActive && (now - this.lastPointerTime) > this.POINTER_TIMEOUT) {
-                    this.stopPointerControl();
+                if (this.currentControlMode === 'pointer' && (now - this.lastPointerTime) > this.POINTER_TIMEOUT) {
                     this.startGyroControl();
                 }
             }
@@ -1079,6 +1065,20 @@
                 
                 // 🖱️ 指標事件（滑鼠/觸控）- 適用於桌面和平板
                 if (this.isDesktop || this.isTablet) {
+                    // 🎯 平板混合控制：只在 mousedown 觸發切換
+                    document.addEventListener('mousedown', (event) => {
+                        if (this.isTablet) {
+                            this.startPointerControl();
+                        }
+                    });
+
+                    // 🎯 平板混合控制：只在 touchstart 觸發切換
+                    document.addEventListener('touchstart', (event) => {
+                        if (this.isTablet) {
+                            this.startPointerControl();
+                        }
+                    });
+
                     // 滑鼠移動事件
                     document.addEventListener('mousemove', (event) => {
                         // 🕹️ 局部視角控制 - 只在局部視角生效
@@ -1088,12 +1088,7 @@
                             this.updateDetailViewControl(newX, newY);
                         }
                         
-                        // 🎯 平板混合控制：指標事件觸發切換
-                        if (this.isTablet) {
-                            this.startPointerControl();
-                        }
-                        
-                        // 更新指標數據
+                        // 更新指標數據（總是更新）
                         this.pointerUpdate(event.clientX, event.clientY);
                         
                         // 計算滑鼠移動速度（用於慣性效果）
@@ -1119,21 +1114,8 @@
                             this.updateDetailViewControl(newX, newY);
                         }
                         
-                        // 🎯 平板混合控制：觸控事件觸發切換
-                        if (this.isTablet) {
-                            this.startPointerControl();
-                        }
-                        
-                        // 更新指標數據
+                        // 更新指標數據（總是更新）
                         this.pointerUpdate(touch.clientX, touch.clientY);
-                    });
-
-                    // 滾輪事件
-                    document.addEventListener('wheel', (event) => {
-                        // 🎯 平板混合控制：滾輪事件觸發切換
-                        if (this.isTablet) {
-                            this.startPointerControl();
-                        }
                     });
 
                     // 滑鼠離開頁面事件
@@ -1706,9 +1688,26 @@
 
             // 🎯 更新控制偏移量 - render loop中的統一偏移量更新
             updateControlOffsets() {
+                // 🎯 根據當前控制模式決定使用哪種輸入
+                let targetX, targetY;
+                
+                if (this.currentControlMode === 'gyro') {
+                    // 陀螺儀模式：使用平滑的陀螺儀數據
+                    targetX = this.smoothedDelta.x;
+                    targetY = this.smoothedDelta.y;
+                } else if (this.currentControlMode === 'pointer') {
+                    // 指標模式：使用指標偏移量
+                    targetX = this.pointerOffset.x;
+                    targetY = this.pointerOffset.y;
+                } else {
+                    // 無控制模式：保持當前值
+                    targetX = this.currentOffsetX;
+                    targetY = this.currentOffsetY;
+                }
+                
                 // 平滑插值到目標偏移量
-                this.currentOffsetX += (this.targetOffsetX - this.currentOffsetX) * this.CONTROL_LERP_SPEED;
-                this.currentOffsetY += (this.targetOffsetY - this.currentOffsetY) * this.CONTROL_LERP_SPEED;
+                this.currentOffsetX += (targetX - this.currentOffsetX) * this.CONTROL_LERP_SPEED;
+                this.currentOffsetY += (targetY - this.currentOffsetY) * this.CONTROL_LERP_SPEED;
                 
                 // 更新orientation值供其他系統使用
                 this.orientation.x = this.currentOffsetX;
@@ -1717,7 +1716,9 @@
                 // 可選：添加調試資訊
                 // console.log('🎯 控制偏移量:', {
                 //     mode: this.currentControlMode,
-                //     target: { x: this.targetOffsetX.toFixed(3), y: this.targetOffsetY.toFixed(3) },
+                //     gyro: { x: this.smoothedDelta.x.toFixed(3), y: this.smoothedDelta.y.toFixed(3) },
+                //     pointer: { x: this.pointerOffset.x.toFixed(3), y: this.pointerOffset.y.toFixed(3) },
+                //     target: { x: targetX.toFixed(3), y: targetY.toFixed(3) },
                 //     current: { x: this.currentOffsetX.toFixed(3), y: this.currentOffsetY.toFixed(3) }
                 // });
             }

@@ -386,7 +386,24 @@
                 this.baseY = null;           // 統一的Y軸基準值
                 this.smoothedDelta = { x: 0, y: 0 }; // 平滑後的差值
                 this.SMOOTH_ALPHA = 0.15;    // 低通濾波係數
+                // 🎯 裝置類型偵測
                 this.isMobile = this.detectMobile();
+                this.isTablet = this.detectTablet();
+                this.isDesktop = !this.isMobile && !this.isTablet;
+                
+                // 📱 平板混合控制系統
+                this.currentControlMode = this.isTablet ? 'gyro' : (this.isDesktop ? 'pointer' : 'gyro'); // 'gyro' or 'pointer'
+                this.lastPointerTime = 0;          // 最後指標事件時間
+                this.controlSwitchTimer = null;    // 控制切換計時器
+                this.POINTER_TIMEOUT = 300;        // 指標事件超時時間 (ms)
+                this.currentOffsetX = 0;           // 統一的X偏移值
+                this.currentOffsetY = 0;           // 統一的Y偏移值
+                this.gyroOffsetX = 0;              // 陀螺儀X偏移值
+                this.gyroOffsetY = 0;              // 陀螺儀Y偏移值
+                this.pointerOffsetX = 0;           // 指標X偏移值
+                this.pointerOffsetY = 0;           // 指標Y偏移值
+                this.controlTransition = 1.0;     // 控制切換過渡係數 (0-1)
+                this.gyroPermissionGranted = false; // 陀螺儀權限狀態
                 this.loadingComplete = false;
                 this.loadedImages = 0;
                 this.totalImages = 0;
@@ -400,7 +417,7 @@
                 this.DEPTH_SENSITIVITY = 0.5;  // 深度圖敏感度：控制深度差異的視差幅度 (建議範圍: 0.1-0.5)
                 
                 // 📱 行動裝置陀螺儀控制
-                this.GYRO_SENSITIVITY = 3.0;    // 陀螺儀靈敏度：控制裝置傾斜的敏感程度 (建議範圍: 0.5-2.0)
+                this.GYRO_SENSITIVITY = 5.0;    // 陀螺儀靈敏度：控制裝置傾斜的敏感程度 (建議範圍: 0.5-2.0)
                 this.GYRO_INVERT_X = true;       // 是否反轉X軸 (左右傾斜)：true=裝置左傾時畫面右移
                 
                 // 🖼️ 統一圖片大小控制

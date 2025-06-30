@@ -86,68 +86,6 @@
             height: 20px;
             fill: currentColor;
         }
-        
-        /* 🎯 重置視角按鈕樣式 */
-        #reset-orientation-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            border: none;
-            border-radius: 25px;
-            padding: 12px 20px;
-            cursor: pointer;
-            font-size: 14px;
-            font-family: Arial, sans-serif;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            z-index: 3000;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(10px);
-            user-select: none;
-            will-change: opacity, transform;
-        }
-        
-        /* 🎯 當陀螺儀按鈕存在時，重置按鈕位置調整 */
-        #gyro-permission-button:not([style*="display: none"]) ~ #reset-orientation-button {
-            bottom: 70px; /* 避免重疊 */
-        }
-        
-        #reset-orientation-button:hover:not(:disabled) {
-            background: rgba(0, 0, 0, 0.9);
-            transform: scale(1.05);
-        }
-        
-        #reset-orientation-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-        
-        #reset-orientation-button svg {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-        }
-        
-        #reset-orientation-button.show {
-            opacity: 1;
-            pointer-events: auto;
-            transform: translateY(0);
-        }
-        
-        #reset-orientation-button.show:not(:disabled) {
-            cursor: pointer;
-        }
-        
-        #reset-orientation-button.show:disabled {
-            cursor: not-allowed;
-        }
 
         /* 層級 2: 載入層 (z-index: 2000+) */
         #loading-cover {
@@ -414,14 +352,6 @@
             <span>啟用陀螺儀</span>
         </button>
         
-        <!-- 🎯 重置視角按鈕 -->
-        <button id="reset-orientation-button" onclick="handleResetOrientation()" disabled>
-            <svg viewBox="0 0 24 24">
-                <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
-            </svg>
-            <span>重置視角</span>
-        </button>
-        
         <canvas id="canvas"></canvas>
     </div>
 
@@ -510,15 +440,6 @@
                 this.baseY = null;           // 統一的Y軸基準值
                 this.smoothedDelta = { x: 0, y: 0 }; // 平滑後的差值
                 this.SMOOTH_ALPHA = 0.15;    // 低通濾波係數
-                
-                // 🎯 重置視角相關
-                this.isResettingOrientation = false;  // 是否正在重置視角
-                this.resetOrientationProgress = 0;    // 重置進度 (0-1)
-                this.resetStartTime = 0;              // 重置開始時間
-                this.resetTargetX = 0;                // 重置目標X值
-                this.resetTargetY = 0;                // 重置目標Y值
-                this.resetStartX = 0;                 // 重置開始X值
-                this.resetStartY = 0;                 // 重置開始Y值
                 this.isMobile = this.detectMobile();
                 this.loadingComplete = false;
                 this.loadedImages = 0;
@@ -740,9 +661,6 @@
                 // 檢查控制模式，只有在陀螺儀模式時才更新
                 if (this.currentControlMode !== 'gyro') return;
                 
-                // 🎯 重置期間暫停陀螺儀更新
-                if (this.isResettingOrientation) return;
-                
                 // 根據螢幕方向轉換為統一的X/Y軸
                 const { x, y } = this.transformGyroData(alpha, beta, gamma);
 
@@ -817,8 +735,9 @@
                 if (!this.gyroActive) return;
                 
                 this.gyroHandler = (event) => {
-                    // 保留 deviceorientation 事件「常駐」；Pointer 模式僅忽略其輸出，不停止事件
-                    if (this.currentControlMode === 'gyro') {
+                    // 保留 deviceorientation 事件「常駐」
+                    // 在陀螺儀模式或過渡期間都要更新控制值，確保無縫體驗
+                    if (this.currentControlMode === 'gyro' || this.isTransitioning) {
                         this.updateFromGyro(event.alpha || 0, event.beta || 0, event.gamma || 0);
                     }
                 };
@@ -838,9 +757,6 @@
             checkControlModeSwitch() {
                 const now = Date.now();
                 
-                // 🎯 重置期間不進行控制模式切換
-                if (this.isResettingOrientation) return;
-                
                 // 如果是指針模式且超過超時時間，切換回陀螺儀
                 // 只在行動版且有陀螺儀權限時才切換
                 if (this.currentControlMode === 'pointer' && 
@@ -850,139 +766,7 @@
                     
                     this.currentControlMode = 'gyro';
                     console.log('🎮 自動切換到陀螺儀控制模式');
-                    
-                    // 更新重置按鈕顯示狀態
-                    setTimeout(() => {
-                        checkAndShowResetButton();
-                    }, 100);
                 }
-            }
-            
-            // 🎯 重置視角方法
-            async resetOrientation() {
-                if (this.isResettingOrientation) {
-                    console.log('🎯 重置視角正在進行中，忽略重複請求');
-                    return;
-                }
-                
-                if (this.currentControlMode !== 'gyro') {
-                    console.log('🎯 當前不是陀螺儀模式，無法重置視角');
-                    return;
-                }
-                
-                console.log('🎯 開始重置視角');
-                this.isResettingOrientation = true;
-                
-                // 暫時隱藏重置按鈕
-                const resetButton = document.getElementById('reset-orientation-button');
-                if (resetButton) {
-                    resetButton.classList.remove('show');
-                    resetButton.disabled = true; // 禁用按鈕防止重複點擊
-                    console.log('🎯 重置期間隱藏並禁用重置按鈕');
-                }
-                
-                // 記錄當前偏移值作為起始值
-                this.resetStartX = this.currentOffsetX;
-                this.resetStartY = this.currentOffsetY;
-                this.resetStartTime = Date.now();
-                
-                // 第一階段：500ms 緩入緩出過渡到當前角度
-                await this.resetOrientationPhase1();
-                
-                // 第二階段：500ms 緩入緩出過渡逐漸給用戶陀螺儀控制
-                await this.resetOrientationPhase2();
-                
-                this.isResettingOrientation = false;
-                
-                // 重新顯示重置按鈕
-                if (resetButton) {
-                    resetButton.disabled = false; // 重新啟用按鈕
-                    resetButton.classList.add('show');
-                    console.log('🎯 重置完成，重新顯示並啟用重置按鈕');
-                }
-                
-                console.log('🎯 重置視角完成');
-            } catch (error) {
-                // 錯誤處理
-                console.error('🎯 重置視角過程中發生錯誤:', error);
-                this.isResettingOrientation = false;
-                
-                // 重新顯示重置按鈕
-                const resetButton = document.getElementById('reset-orientation-button');
-                if (resetButton) {
-                    resetButton.disabled = false; // 重新啟用按鈕
-                    resetButton.classList.add('show');
-                }
-            }
-            
-            // 🎯 重置視角第一階段：過渡到當前角度
-            async resetOrientationPhase1() {
-                return new Promise((resolve) => {
-                    const duration = 500; // 500ms
-                    const startTime = Date.now();
-                    
-                    const animate = () => {
-                        const elapsed = Date.now() - startTime;
-                        const progress = Math.min(elapsed / duration, 1);
-                        
-                        // 緩入緩出曲線
-                        const easeProgress = progress < 0.5 
-                            ? 2 * progress * progress 
-                            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-                        
-                        // 從當前偏移過渡到0
-                        this.currentOffsetX = this.resetStartX * (1 - easeProgress);
-                        this.currentOffsetY = this.resetStartY * (1 - easeProgress);
-                        
-                        // 可選：添加調試資訊
-                        // console.log(`🎯 重置第一階段: progress=${easeProgress.toFixed(3)}, offset=(${this.currentOffsetX.toFixed(3)}, ${this.currentOffsetY.toFixed(3)})`);
-                        
-                        if (progress < 1) {
-                            requestAnimationFrame(animate);
-                        } else {
-                            resolve();
-                        }
-                    };
-                    
-                    animate();
-                });
-            }
-            
-            // 🎯 重置視角第二階段：重新建立基準值
-            async resetOrientationPhase2() {
-                return new Promise((resolve) => {
-                    const duration = 500; // 500ms
-                    const startTime = Date.now();
-                    
-                    // 重設基準值，等待新的陀螺儀數據
-                    this.baseX = null;
-                    this.baseY = null;
-                    this.smoothedDelta = { x: 0, y: 0 };
-                    
-                    const animate = () => {
-                        const elapsed = Date.now() - startTime;
-                        const progress = Math.min(elapsed / duration, 1);
-                        
-                        // 緩入緩出曲線
-                        const easeProgress = progress < 0.5 
-                            ? 2 * progress * progress 
-                            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-                        
-                        // 逐漸恢復陀螺儀控制
-                        // 在這個階段，陀螺儀會自動建立新的基準值
-                        // 我們只需要等待動畫完成
-                        
-                        if (progress < 1) {
-                            requestAnimationFrame(animate);
-                        } else {
-                            // 動畫完成後，確保陀螺儀控制恢復正常
-                            console.log('🎯 重置視角第二階段完成，陀螺儀控制已恢復');
-                            resolve();
-                        }
-                    };
-                    
-                    animate();
-                });
             }
 
             // 統一的圖片尺寸計算函數
@@ -1382,8 +1166,8 @@
                         this.updateFromPointer(x, y);
                     }
                     
-                    // 🕹️ 局部視角控制 - 只在局部視角生效
-                    if (this.viewState === 'detail' && !this.isTransitioning) {
+                    // 🕹️ 局部視角控制 - 在局部視角或過渡期間都要更新
+                    if (this.viewState === 'detail') {
                         this.updateDetailViewControl(this.currentOffsetX, this.currentOffsetY);
                     }
                 };
@@ -1394,13 +1178,13 @@
                     const x = event.touches?.[0]?.clientX || 0;
                     const y = event.touches?.[0]?.clientY || 0;
                     
-                    // 如果當前是指針模式，更新控制值
-                    if (this.currentControlMode === 'pointer') {
+                    // 如果當前是指針模式或在過渡期間，更新控制值
+                    if (this.currentControlMode === 'pointer' || this.isTransitioning) {
                         this.updateFromPointer(x, y);
                     }
                     
-                    // 🕹️ 局部視角控制 - 只在局部視角生效
-                    if (this.viewState === 'detail' && !this.isTransitioning) {
+                    // 🕹️ 局部視角控制 - 在局部視角或過渡期間都要更新
+                    if (this.viewState === 'detail') {
                         this.updateDetailViewControl(this.currentOffsetX, this.currentOffsetY);
                     }
                 };
@@ -1450,20 +1234,10 @@
                             } else {
                                 this.currentControlMode = 'pointer';
                             }
-                            
-                            // 更新重置按鈕顯示狀態
-                            setTimeout(() => {
-                                checkAndShowResetButton();
-                            }, 100);
                         } else {
                             // 桌面版直接設定為指針控制模式
                             console.log('🎮 桌面版，設定為指針控制模式');
                             this.currentControlMode = 'pointer';
-                            
-                            // 更新重置按鈕顯示狀態
-                            setTimeout(() => {
-                                checkAndShowResetButton();
-                            }, 100);
                         }
                     }
                     
@@ -1491,11 +1265,6 @@
                         if (this.currentControlMode === 'gyro') {
                             this.currentControlMode = 'pointer';
                             console.log('🎮 檢測到滑鼠互動，切換到指針控制模式');
-                            
-                            // 更新重置按鈕顯示狀態
-                            setTimeout(() => {
-                                checkAndShowResetButton();
-                            }, 100);
                         }
                     }, { passive: true });
                 });
@@ -2065,10 +1834,10 @@
                         ? 2 * progress * progress 
                         : 1 - Math.pow(-2 * progress + 2, 3) / 2;
                     
-                    // 🔧 過渡期間的滑鼠控制：同時應用主視差和局部視角控制
-                    // 🎯 重置期間使用固定的偏移值，避免干擾重置動畫
-                    const rawInputX = this.isResettingOrientation ? 0 : (this.isMobile ? this.currentOffsetX : this.mouse.x);
-                    const rawInputY = this.isResettingOrientation ? 0 : (this.isMobile ? this.currentOffsetY : this.mouse.y);
+                    // 🔧 過渡期間的統一控制：同時應用主視差和局部視角控制
+                    // 使用統一的控制值，確保陀螺儀和滑鼠行為一致
+                    const rawInputX = this.currentOffsetX;
+                    const rawInputY = this.currentOffsetY;
                     
                     // 主視差權重：從1過渡到0
                     const mainParallaxWeight = 1.0 - easeProgress;
@@ -2210,10 +1979,10 @@
                         ? 2 * progress * progress 
                         : 1 - Math.pow(-2 * progress + 2, 3) / 2;
                     
-                    // 🔧 過渡期間的滑鼠控制：同時應用局部視角和主視差控制
-                    // 🎯 重置期間使用固定的偏移值，避免干擾重置動畫
-                    const rawInputX = this.isResettingOrientation ? 0 : (this.isMobile ? this.currentOffsetX : this.mouse.x);
-                    const rawInputY = this.isResettingOrientation ? 0 : (this.isMobile ? this.currentOffsetY : this.mouse.y);
+                    // 🔧 過渡期間的統一控制：同時應用局部視角和主視差控制
+                    // 使用統一的控制值，確保陀螺儀和滑鼠行為一致
+                    const rawInputX = this.currentOffsetX;
+                    const rawInputY = this.currentOffsetY;
                     
                     // 局部視角權重：從1過渡到0
                     const detailViewWeight = 1.0 - easeProgress;
@@ -3096,9 +2865,6 @@
 
             // 🕹️ 局部視角控制方法
             updateDetailViewControl(inputX, inputY) {
-                // 🎯 重置期間暫停局部視角控制
-                if (this.isResettingOrientation) return;
-                
                 // 更新局部視角的滑鼠位置
                 this.detailViewMouse.x = inputX;
                 this.detailViewMouse.y = inputY;
@@ -3225,35 +2991,11 @@
                     // 切換到陀螺儀控制模式
                     parallaxViewerInstance.currentControlMode = 'gyro';
                     console.log('🎮 成功啟用陀螺儀控制');
-                    
-                    // 檢查並顯示重置視角按鈕
-                    setTimeout(() => {
-                        checkAndShowResetButton();
-                    }, 500);
                 } else {
                     // 權限被拒絕，保持指針控制模式
                     parallaxViewerInstance.currentControlMode = 'pointer';
                     console.log('🎮 陀螺儀權限被拒絕，使用指針控制模式');
-                    
-                    // 更新重置按鈕顯示狀態
-                    setTimeout(() => {
-                        checkAndShowResetButton();
-                    }, 100);
                 }
-            }
-        }
-        
-        // 🎯 重置視角處理函數
-        async function handleResetOrientation() {
-            const resetButton = document.getElementById('reset-orientation-button');
-            if (resetButton && resetButton.disabled) {
-                console.log('🎯 重置按鈕已禁用，忽略點擊');
-                return;
-            }
-            
-            if (parallaxViewerInstance) {
-                console.log('🎯 使用者點擊重置視角按鈕');
-                await parallaxViewerInstance.resetOrientation();
             }
         }
 
@@ -3274,57 +3016,7 @@
                     }, 3000); // 3秒後顯示
                 }
             }
-            
-            // 🎯 設定重置視角按鈕的顯示邏輯
-            setupResetOrientationButton();
         });
-        
-        // 🎯 設定重置視角按鈕顯示邏輯
-        function setupResetOrientationButton() {
-            const resetButton = document.getElementById('reset-orientation-button');
-            const gyroButton = document.getElementById('gyro-permission-button');
-            
-            if (!resetButton) return;
-            
-            // 檢查是否需要等待陀螺儀按鈕消失
-            if (gyroButton && gyroButton.style.display !== 'none') {
-                // 監聽陀螺儀按鈕的顯示狀態
-                const observer = new MutationObserver(() => {
-                    if (gyroButton.style.display === 'none') {
-                        // 陀螺儀按鈕消失後，等待載入動畫淡出再顯示重置按鈕
-                        setTimeout(() => {
-                            checkAndShowResetButton();
-                        }, 1000); // 等待1秒確保載入動畫完成
-                        observer.disconnect();
-                    }
-                });
-                
-                observer.observe(gyroButton, { attributes: true, attributeFilter: ['style'] });
-            } else {
-                // 沒有陀螺儀按鈕，在載入動畫淡出時同步顯示
-                setTimeout(() => {
-                    checkAndShowResetButton();
-                }, 1000); // 等待載入動畫淡出
-            }
-        }
-        
-        // 🎯 檢查並顯示重置按鈕
-        function checkAndShowResetButton() {
-            const resetButton = document.getElementById('reset-orientation-button');
-            if (!resetButton || !parallaxViewerInstance) return;
-            
-            // 只在陀螺儀模式下顯示重置按鈕
-            if (parallaxViewerInstance.currentControlMode === 'gyro' && 
-                parallaxViewerInstance.gyroPermissionGranted) {
-                resetButton.disabled = false; // 啟用按鈕
-                resetButton.classList.add('show');
-                console.log('🎯 顯示並啟用重置視角按鈕');
-            } else {
-                resetButton.disabled = true; // 禁用按鈕
-                resetButton.classList.remove('show');
-                console.log('🎯 隱藏並禁用重置視角按鈕');
-            }
-        }
 
 
     </script>

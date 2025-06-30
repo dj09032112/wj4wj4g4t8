@@ -87,6 +87,38 @@
             fill: currentColor;
         }
 
+        /* 🎮 重置陀螺儀按鈕樣式 */
+        #reset-gyro-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            z-index: 3000;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        #reset-gyro-button:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.05);
+        }
+        
+        #reset-gyro-button svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
         /* 層級 2: 載入層 (z-index: 2000+) */
         #loading-cover {
             position: fixed;
@@ -351,6 +383,14 @@
             </svg>
             <span>啟用陀螺儀</span>
         </button>
+
+        <!-- 🎮 重置陀螺儀按鈕 -->
+        <button id="reset-gyro-button" onclick="handleResetGyro()" style="display: none;">
+            <svg viewBox="0 0 24 24">
+                <path d="M12,5V1L7,6L12,11V7A6,6 0 0,1 18,13A6,6 0 0,1 12,19A6,6 0 0,1 6,13H4A8,8 0 0,0 12,21A8,8 0 0,0 20,13A8,8 0 0,0 12,5Z"/>
+            </svg>
+            <span>重置視角</span>
+        </button>
         
         <canvas id="canvas"></canvas>
     </div>
@@ -418,6 +458,7 @@
                 this.lastPointerTime = 0;          // 最後一次指針事件時間
                 this.POINTER_TIMEOUT = 300;        // 指針事件超時時間 (ms)
                 this.initialOrientation = this.getInitialOrientation(); // 儲存初始螢幕方向
+                this.isResetting = false;          // 是否正在執行重置過渡動畫
                 
                 // 統一輸出控制值
                 this.currentOffsetX = 0;           // 當前X軸偏移值
@@ -638,6 +679,62 @@
                 console.log('🎮 陀螺儀控制已停用（事件保持註冊）');
             }
 
+            // 🎮 重置陀螺儀基準值
+            resetGyroBase() {
+                if (!this.gyroActive || this.currentControlMode !== 'gyro') {
+                    console.log('🎮 陀螺儀未啟用或不在陀螺儀模式，無法重置');
+                    return false;
+                }
+                
+                // 開始500ms的過渡動畫
+                this.startResetTransition();
+                
+                return true;
+            }
+
+            // 🎮 開始重置過渡動畫
+            startResetTransition() {
+                const transitionDuration = 500; // 500ms
+                const startTime = Date.now();
+                const startOffsetX = this.currentOffsetX;
+                const startOffsetY = this.currentOffsetY;
+                
+                // 設定重置狀態，防止陀螺儀更新覆蓋過渡值
+                this.isResetting = true;
+                
+                console.log('🎮 開始重置視角過渡動畫');
+                
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / transitionDuration, 1);
+                    
+                    // 使用緩出函數 (ease-out) 讓動畫更自然
+                    const easedProgress = 1 - Math.pow(1 - progress, 3);
+                    
+                    // 從當前偏移值平滑過渡到0
+                    this.currentOffsetX = startOffsetX * (1 - easedProgress);
+                    this.currentOffsetY = startOffsetY * (1 - easedProgress);
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        // 動畫完成，重設基準值
+                        this.currentOffsetX = 0;
+                        this.currentOffsetY = 0;
+                        this.baseX = null;
+                        this.baseY = null;
+                        this.smoothedDelta = { x: 0, y: 0 };
+                        
+                        // 清除重置狀態，允許陀螺儀正常更新
+                        this.isResetting = false;
+                        
+                        console.log('🎮 重置視角過渡動畫完成，基準值已重置');
+                    }
+                };
+                
+                animate();
+            }
+
             // 🎮 啟動指針控制（僅切換模式，不停止陀螺儀）
             startPointerControl() {
                 if (this.currentControlMode === 'pointer') return;
@@ -697,9 +794,11 @@
                 this.smoothedDelta.x = this.smoothedDelta.x * (1 - this.SMOOTH_ALPHA) + deltaX * this.SMOOTH_ALPHA;
                 this.smoothedDelta.y = this.smoothedDelta.y * (1 - this.SMOOTH_ALPHA) + deltaY * this.SMOOTH_ALPHA;
 
-                // 更新統一輸出值
-                this.currentOffsetX = this.smoothedDelta.x;
-                this.currentOffsetY = this.smoothedDelta.y;
+                // 更新統一輸出值（只有在非重置過渡期間才更新）
+                if (!this.isResetting) {
+                    this.currentOffsetX = this.smoothedDelta.x;
+                    this.currentOffsetY = this.smoothedDelta.y;
+                }
             }
 
             // 🎮 從指針更新控制值
@@ -717,6 +816,10 @@
                     this.mouseVelocity.x = offsetX - this.mouse.x;
                     this.mouseVelocity.y = offsetY - this.mouse.y;
                 }
+                
+                // 更新滑鼠位置（用於速度計算）
+                this.mouse.x = offsetX;
+                this.mouse.y = offsetY;
                 
                 // 更新統一輸出值
                 this.currentOffsetX = offsetX;
@@ -753,12 +856,32 @@
                 const now = Date.now();
                 
                 // 如果是指針模式且超過超時時間，切換回陀螺儀
+                // 只在行動版且有陀螺儀權限時才切換
                 if (this.currentControlMode === 'pointer' && 
+                    this.isMobile &&
                     (now - this.lastPointerTime) > this.POINTER_TIMEOUT &&
                     this.gyroPermissionGranted) {
                     
                     this.currentControlMode = 'gyro';
                     console.log('🎮 自動切換到陀螺儀控制模式');
+                }
+            }
+
+            // 🎮 顯示重置陀螺儀按鈕
+            showResetGyroButton() {
+                const resetButton = document.getElementById('reset-gyro-button');
+                if (resetButton && this.isMobile && this.gyroPermissionGranted) {
+                    resetButton.style.display = 'flex';
+                    console.log('🎮 顯示重置陀螺儀按鈕');
+                }
+            }
+
+            // 🎮 隱藏重置陀螺儀按鈕
+            hideResetGyroButton() {
+                const resetButton = document.getElementById('reset-gyro-button');
+                if (resetButton) {
+                    resetButton.style.display = 'none';
+                    console.log('🎮 隱藏重置陀螺儀按鈕');
                 }
             }
 
@@ -1142,7 +1265,8 @@
                 // 🎮 指針事件處理（滑鼠、觸控、滾輪）
                 const handlePointerEvent = (event) => {
                     // 只在偵測到「真實滑鼠」事件時才啟用 Pointer 模式
-                    if (event.pointerType !== 'mouse') return; // 忽略 touch / pen
+                    // 桌面版滑鼠事件沒有 pointerType，行動版需要檢查
+                    if (this.isMobile && event.pointerType && event.pointerType !== 'mouse') return; // 忽略 touch / pen
                     
                     // 啟動指針控制模式
                     this.startPointerControl();
@@ -1216,13 +1340,19 @@
 
                 // 🎮 第一次使用者互動時嘗試啟用陀螺儀
                 const handleFirstInteraction = async () => {
-                    if (this.currentControlMode === 'none' && this.isMobile) {
-                        console.log('🎮 檢測到第一次使用者互動，嘗試啟用陀螺儀');
-                        
-                        const gyroSuccess = await this.startGyroControl();
-                        if (gyroSuccess) {
-                            this.currentControlMode = 'gyro';
+                    if (this.currentControlMode === 'none') {
+                        if (this.isMobile) {
+                            console.log('🎮 檢測到第一次使用者互動，嘗試啟用陀螺儀');
+                            
+                            const gyroSuccess = await this.startGyroControl();
+                            if (gyroSuccess) {
+                                this.currentControlMode = 'gyro';
+                            } else {
+                                this.currentControlMode = 'pointer';
+                            }
                         } else {
+                            // 桌面版直接設定為指針控制模式
+                            console.log('🎮 桌面版，設定為指針控制模式');
                             this.currentControlMode = 'pointer';
                         }
                     }
@@ -1241,7 +1371,8 @@
                 mouseEvents.forEach(eventType => {
                     document.addEventListener(eventType, (event) => {
                         // 只在偵測到「真實滑鼠」事件時才切換
-                        if (event.pointerType && event.pointerType !== 'mouse') return;
+                        // 桌面版滑鼠事件沒有 pointerType，行動版需要檢查
+                        if (this.isMobile && event.pointerType && event.pointerType !== 'mouse') return;
                         
                         // 記錄最後滑鼠互動時間
                         this.lastPointerTime = Date.now();
@@ -1533,9 +1664,30 @@
                 const loadingElement = document.getElementById('loading');
                 loadingElement.classList.add('fade-out');
                 
-                // 1秒後完全隱藏載入中元素
+                // 1秒後完全隱藏載入中元素，並顯示重置陀螺儀按鈕
                 setTimeout(() => {
                     loadingElement.style.display = 'none';
+                    
+                    // 🎮 在載入中動畫淡出時顯示重置陀螺儀按鈕
+                    // 檢查是否需要顯示重置陀螺儀按鈕
+                    if (this.isMobile && this.gyroPermissionGranted) {
+                        // 如果有陀螺儀權限按鈕，等待它消失後再顯示重置按鈕
+                        const gyroButton = document.getElementById('gyro-permission-button');
+                        if (gyroButton && gyroButton.style.display !== 'none') {
+                            // 監聽陀螺儀權限按鈕的隱藏
+                            const checkGyroButton = () => {
+                                if (gyroButton.style.display === 'none') {
+                                    this.showResetGyroButton();
+                                } else {
+                                    setTimeout(checkGyroButton, 100);
+                                }
+                            };
+                            checkGyroButton();
+                        } else {
+                            // 沒有陀螺儀權限按鈕，直接顯示重置按鈕
+                            this.showResetGyroButton();
+                        }
+                    }
                 }, loadingFadeDuration);
                 
                 // 同時開始視差過渡動畫（1.5秒）
@@ -1964,8 +2116,8 @@
                         : 1 - Math.pow(-2 * progress + 2, 3) / 2;
                     
                     // 🔧 過渡期間的滑鼠控制：同時應用局部視角和主視差控制
-                    const rawInputX = this.isMobile ? this.orientation.x : this.mouse.x;
-                    const rawInputY = this.isMobile ? this.orientation.y : this.mouse.y;
+                    const rawInputX = this.isMobile ? this.currentOffsetX : this.mouse.x;
+                    const rawInputY = this.isMobile ? this.currentOffsetY : this.mouse.y;
                     
                     // 局部視角權重：從1過渡到0
                     const detailViewWeight = 1.0 - easeProgress;
@@ -2974,10 +3126,29 @@
                     // 切換到陀螺儀控制模式
                     parallaxViewerInstance.currentControlMode = 'gyro';
                     console.log('🎮 成功啟用陀螺儀控制');
+                    
+                    // 顯示重置陀螺儀按鈕
+                    parallaxViewerInstance.showResetGyroButton();
                 } else {
                     // 權限被拒絕，保持指針控制模式
                     parallaxViewerInstance.currentControlMode = 'pointer';
                     console.log('🎮 陀螺儀權限被拒絕，使用指針控制模式');
+                }
+            }
+        }
+
+        // 🎮 重置陀螺儀處理函數
+        function handleResetGyro() {
+            if (parallaxViewerInstance) {
+                console.log('🎮 使用者點擊重置陀螺儀按鈕');
+                
+                const success = parallaxViewerInstance.resetGyroBase();
+                if (success) {
+                    // 顯示成功提示（可選）
+                    console.log('🎮 陀螺儀基準值重置成功');
+                } else {
+                    // 顯示錯誤提示（可選）
+                    console.log('🎮 陀螺儀重置失敗，請確保陀螺儀已啟用');
                 }
             }
         }
@@ -2998,6 +3169,18 @@
                         button.style.display = 'flex';
                     }, 3000); // 3秒後顯示
                 }
+            } else if (parallaxViewerInstance.isMobile && 
+                       'DeviceOrientationEvent' in window) {
+                // 不需要權限請求的裝置，直接啟用陀螺儀
+                parallaxViewerInstance.startGyroControl().then(success => {
+                    if (success) {
+                        parallaxViewerInstance.currentControlMode = 'gyro';
+                        console.log('🎮 自動啟用陀螺儀控制（無需權限）');
+                        
+                        // 自動啟用陀螺儀後，在載入完成時顯示重置按鈕
+                        // 重置按鈕會在 startLoadingFadeOutAndParallaxTransition 中處理
+                    }
+                });
             }
         });
 

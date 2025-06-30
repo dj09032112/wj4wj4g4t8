@@ -735,9 +735,8 @@
                 if (!this.gyroActive) return;
                 
                 this.gyroHandler = (event) => {
-                    // 保留 deviceorientation 事件「常駐」
-                    // 在陀螺儀模式或過渡期間都要更新控制值，確保無縫體驗
-                    if (this.currentControlMode === 'gyro' || this.isTransitioning) {
+                    // 保留 deviceorientation 事件「常駐」；Pointer 模式僅忽略其輸出，不停止事件
+                    if (this.currentControlMode === 'gyro') {
                         this.updateFromGyro(event.alpha || 0, event.beta || 0, event.gamma || 0);
                     }
                 };
@@ -1166,8 +1165,8 @@
                         this.updateFromPointer(x, y);
                     }
                     
-                    // 🕹️ 局部視角控制 - 在局部視角或過渡期間都要更新
-                    if (this.viewState === 'detail') {
+                    // 🕹️ 局部視角控制 - 只在局部視角生效
+                    if (this.viewState === 'detail' && !this.isTransitioning) {
                         this.updateDetailViewControl(this.currentOffsetX, this.currentOffsetY);
                     }
                 };
@@ -1178,13 +1177,13 @@
                     const x = event.touches?.[0]?.clientX || 0;
                     const y = event.touches?.[0]?.clientY || 0;
                     
-                    // 如果當前是指針模式或在過渡期間，更新控制值
-                    if (this.currentControlMode === 'pointer' || this.isTransitioning) {
+                    // 如果當前是指針模式，更新控制值
+                    if (this.currentControlMode === 'pointer') {
                         this.updateFromPointer(x, y);
                     }
                     
-                    // 🕹️ 局部視角控制 - 在局部視角或過渡期間都要更新
-                    if (this.viewState === 'detail') {
+                    // 🕹️ 局部視角控制 - 只在局部視角生效
+                    if (this.viewState === 'detail' && !this.isTransitioning) {
                         this.updateDetailViewControl(this.currentOffsetX, this.currentOffsetY);
                     }
                 };
@@ -1834,10 +1833,9 @@
                         ? 2 * progress * progress 
                         : 1 - Math.pow(-2 * progress + 2, 3) / 2;
                     
-                    // 🔧 過渡期間的統一控制：同時應用主視差和局部視角控制
-                    // 使用統一的控制值，確保陀螺儀和滑鼠行為一致
-                    const rawInputX = this.currentOffsetX;
-                    const rawInputY = this.currentOffsetY;
+                    // 🔧 過渡期間的滑鼠控制：同時應用主視差和局部視角控制
+                    const rawInputX = this.isMobile ? this.currentOffsetX : this.mouse.x;
+                    const rawInputY = this.isMobile ? this.currentOffsetY : this.mouse.y;
                     
                     // 主視差權重：從1過渡到0
                     const mainParallaxWeight = 1.0 - easeProgress;
@@ -1979,10 +1977,9 @@
                         ? 2 * progress * progress 
                         : 1 - Math.pow(-2 * progress + 2, 3) / 2;
                     
-                    // 🔧 過渡期間的統一控制：同時應用局部視角和主視差控制
-                    // 使用統一的控制值，確保陀螺儀和滑鼠行為一致
-                    const rawInputX = this.currentOffsetX;
-                    const rawInputY = this.currentOffsetY;
+                    // 🔧 過渡期間的滑鼠控制：同時應用局部視角和主視差控制
+                    const rawInputX = this.isMobile ? this.orientation.x : this.mouse.x;
+                    const rawInputY = this.isMobile ? this.orientation.y : this.mouse.y;
                     
                     // 局部視角權重：從1過渡到0
                     const detailViewWeight = 1.0 - easeProgress;

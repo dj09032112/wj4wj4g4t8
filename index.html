@@ -459,6 +459,7 @@
                 this.POINTER_TIMEOUT = 300;        // 指針事件超時時間 (ms)
                 this.initialOrientation = this.getInitialOrientation(); // 儲存初始螢幕方向
                 this.isResetting = false;          // 是否正在執行重置過渡動畫
+                this.gyroFreeze = false;           // 是否凍結陀螺儀輸出
                 
                 // 統一輸出控制值
                 this.currentOffsetX = 0;           // 當前X軸偏移值
@@ -694,22 +695,34 @@
 
             // 🎮 開始重置過渡動畫
             startResetTransition() {
-                const transitionDuration = 500; // 500ms
+                const resetTransitionDuration = 500; // 重置過渡：500ms
+                const handoverTransitionDuration = 500; // 控制交還過渡：500ms
                 const startTime = Date.now();
                 const startOffsetX = this.currentOffsetX;
                 const startOffsetY = this.currentOffsetY;
                 
                 // 設定重置狀態，防止陀螺儀更新覆蓋過渡值
                 this.isResetting = true;
+                // 凍結陀螺儀輸出
+                this.gyroFreeze = true;
                 
                 console.log('🎮 開始重置視角過渡動畫');
                 
                 const animate = () => {
                     const elapsed = Date.now() - startTime;
-                    const progress = Math.min(elapsed / transitionDuration, 1);
+                    const progress = Math.min(elapsed / resetTransitionDuration, 1);
                     
-                    // 使用緩出函數 (ease-out) 讓動畫更自然
-                    const easedProgress = 1 - Math.pow(1 - progress, 3);
+                    // 使用緩入緩出函數 (ease-in-out)
+                    let easedProgress;
+                    if (progress < 0.5) {
+                        // 前50%使用緩入 (ease-in)
+                        const t = progress * 2; // 將0-0.5映射到0-1
+                        easedProgress = Math.pow(t, 3) * 0.5; // cubic ease-in，結果映射到0-0.5
+                    } else {
+                        // 後50%使用緩出 (ease-out)
+                        const t = (progress - 0.5) * 2; // 將0.5-1映射到0-1
+                        easedProgress = 0.5 + (1 - Math.pow(1 - t, 3)) * 0.5; // cubic ease-out，結果映射到0.5-1
+                    }
                     
                     // 從當前偏移值平滑過渡到0
                     this.currentOffsetX = startOffsetX * (1 - easedProgress);
@@ -718,7 +731,41 @@
                     if (progress < 1) {
                         requestAnimationFrame(animate);
                     } else {
-                        // 動畫完成，重設基準值
+                        // 重置過渡完成，開始控制交還過渡
+                        this.startHandoverTransition();
+                    }
+                };
+                
+                animate();
+            }
+
+            // 🎮 開始控制交還過渡動畫
+            startHandoverTransition() {
+                const handoverTransitionDuration = 500; // 控制交還過渡：500ms
+                const startTime = Date.now();
+                
+                console.log('🎮 開始控制交還過渡動畫');
+                
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / handoverTransitionDuration, 1);
+                    
+                    // 使用緩入緩出函數 (ease-in-out)
+                    let easedProgress;
+                    if (progress < 0.5) {
+                        // 前50%使用緩入 (ease-in)
+                        const t = progress * 2; // 將0-0.5映射到0-1
+                        easedProgress = Math.pow(t, 3) * 0.5; // cubic ease-in，結果映射到0-0.5
+                    } else {
+                        // 後50%使用緩出 (ease-out)
+                        const t = (progress - 0.5) * 2; // 將0.5-1映射到0-1
+                        easedProgress = 0.5 + (1 - Math.pow(1 - t, 3)) * 0.5; // cubic ease-out，結果映射到0.5-1
+                    }
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        // 控制交還過渡完成
                         this.currentOffsetX = 0;
                         this.currentOffsetY = 0;
                         this.baseX = null;
@@ -727,8 +774,9 @@
                         
                         // 清除重置狀態，允許陀螺儀正常更新
                         this.isResetting = false;
+                        this.gyroFreeze = false;
                         
-                        console.log('🎮 重置視角過渡動畫完成，基準值已重置');
+                        console.log('🎮 重置視角和控制交還過渡動畫完成，基準值已重置');
                     }
                 };
                 
@@ -757,6 +805,9 @@
             updateFromGyro(alpha, beta, gamma) {
                 // 檢查控制模式，只有在陀螺儀模式時才更新
                 if (this.currentControlMode !== 'gyro') return;
+                
+                // 檢查是否凍結陀螺儀輸出
+                if (this.gyroFreeze) return;
                 
                 // 根據螢幕方向轉換為統一的X/Y軸
                 const { x, y } = this.transformGyroData(alpha, beta, gamma);

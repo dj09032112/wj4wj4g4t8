@@ -526,72 +526,6 @@
                        window.innerWidth <= 768;
             }
 
-            // 🎮 檢測桌面操作體驗（藍牙滑鼠、鍵盤、遊戲手柄等）
-            detectDesktopExperience() {
-                // 檢測藍牙滑鼠或鍵盤
-                const hasBluetoothDevices = this.detectBluetoothDevices();
-                
-                // 檢測遊戲手柄
-                const hasGamepads = this.detectGamepads();
-                
-                // 檢測鍵盤事件
-                const hasKeyboardSupport = this.detectKeyboardSupport();
-                
-                // 檢測觸控板（通常與桌面體驗相關）
-                const hasTouchpad = this.detectTouchpad();
-                
-                console.log('🎮 桌面體驗檢測:', {
-                    bluetooth: hasBluetoothDevices,
-                    gamepads: hasGamepads,
-                    keyboard: hasKeyboardSupport,
-                    touchpad: hasTouchpad
-                });
-                
-                return hasBluetoothDevices || hasGamepads || hasKeyboardSupport || hasTouchpad;
-            }
-
-            // 🎮 檢測藍牙設備
-            detectBluetoothDevices() {
-                // 檢查是否支援藍牙API
-                if ('bluetooth' in navigator) {
-                    return true; // 有藍牙支援，可能連接了藍牙設備
-                }
-                
-                // 檢查User Agent中的藍牙相關信息
-                const userAgent = navigator.userAgent.toLowerCase();
-                const hasBluetoothIndicators = userAgent.includes('bluetooth') || 
-                                             userAgent.includes('bt') ||
-                                             userAgent.includes('wireless');
-                
-                return hasBluetoothIndicators;
-            }
-
-            // 🎮 檢測遊戲手柄
-            detectGamepads() {
-                if ('getGamepads' in navigator) {
-                    const gamepads = navigator.getGamepads();
-                    return gamepads.some(gamepad => gamepad !== null);
-                }
-                return false;
-            }
-
-            // 🎮 檢測鍵盤支援
-            detectKeyboardSupport() {
-                // 檢查是否有鍵盤事件支援
-                return 'KeyboardEvent' in window;
-            }
-
-            // 🎮 檢測觸控板
-            detectTouchpad() {
-                // 檢查是否支援觸控板事件
-                const userAgent = navigator.userAgent.toLowerCase();
-                const hasTouchpadIndicators = userAgent.includes('macintosh') || 
-                                            userAgent.includes('trackpad') ||
-                                            userAgent.includes('synaptics');
-                
-                return hasTouchpadIndicators;
-            }
-
             // 🎮 檢測是否需要權限請求
             needsGyroPermission() {
                 return typeof DeviceOrientationEvent.requestPermission === 'function';
@@ -686,7 +620,14 @@
                 // 註冊陀螺儀事件（常駐）
                 this.gyroActive = true;
                 this.registerGyroEvents();
-                console.log('🎮 陀螺儀事件已註冊');
+                
+                // 📐 初始橫屏時正確建立基準
+                this.currentOrientation = this.getScreenOrientation();
+                const { x, y } = this.transformGyroData(0, 0, 0);
+                this.baseX = x;
+                this.baseY = y;
+                
+                console.log('🎮 陀螺儀事件已註冊，初始基準已建立');
                 return true;
             }
 
@@ -805,18 +746,6 @@
                 }
             }
 
-            // 🎮 檢測並調整控制模式
-            detectAndAdjustControlMode() {
-                // 檢測桌面操作體驗
-                const hasDesktopExperience = this.detectDesktopExperience();
-                
-                if (hasDesktopExperience && this.currentControlMode === 'gyro') {
-                    // 如果有桌面操作體驗且當前是陀螺儀模式，切換到指針模式
-                    this.currentControlMode = 'pointer';
-                    console.log('🎮 檢測到桌面操作體驗，切換到指針控制模式');
-                }
-            }
-
             // 🎮 檢查控制模式切換
             checkControlModeSwitch() {
                 const now = Date.now();
@@ -829,6 +758,9 @@
                     this.currentControlMode = 'gyro';
                     console.log('🎮 自動切換到陀螺儀控制模式');
                 }
+                
+                // Gyro 回復不受 lastPointerTime 影響
+                if (!this.gyroPermissionGranted) return; // 未授權不切回
             }
 
             // 統一的圖片尺寸計算函數
@@ -1194,10 +1126,15 @@
                     if (newOrientation !== this.currentOrientation) {
                         console.log(`🔄 螢幕方向變化: ${this.currentOrientation} → ${newOrientation}`);
                         this.currentOrientation = newOrientation;
-                        // 重設基準值，避免翻轉時跳動
-                        this.baseX = null;
-                        this.baseY = null;
-                        this.smoothedDelta = { x: 0, y: 0 };
+                        
+                        // 🔄 Orientation 變更即時更新基準
+                        if (this.currentControlMode === 'gyro') {
+                            // 重設基準值，避免翻轉時跳動
+                            this.baseX = null;
+                            this.baseY = null;
+                            this.smoothedDelta = { x: 0, y: 0 };
+                            console.log('🔄 陀螺儀模式：基準值已重設');
+                        }
                     }
                 };
 
@@ -1210,30 +1147,23 @@
 
                 // 🎮 指針事件處理（滑鼠、觸控、滾輪）
                 const handlePointerEvent = (event) => {
-                    // 檢查是否為真實滑鼠事件
-                    const isMouseEvent = event.pointerType === 'mouse' || 
-                                       event.type === 'mousemove' || 
-                                       event.type === 'wheel';
-                    
-                    // 只有真實滑鼠事件才啟動指針控制模式
-                    if (isMouseEvent) {
-                        this.startPointerControl();
-                    }
-                    
-                    // 更新控制值
-                    if (event.type === 'wheel') {
-                        // 滾輪事件：使用滑鼠當前位置
-                        this.updateFromPointer(this.mouse.x, this.mouse.y);
-                    } else {
-                        // 滑鼠/觸控事件：使用事件位置
-                        const x = event.clientX || event.touches?.[0]?.clientX || 0;
-                        const y = event.clientY || event.touches?.[0]?.clientY || 0;
-                        this.updateFromPointer(x, y);
-                    }
-                    
-                    // 🕹️ 局部視角控制 - 只在局部視角生效
-                    if (this.viewState === 'detail' && !this.isTransitioning) {
-                        this.updateDetailViewControl(this.currentOffsetX, this.currentOffsetY);
+                    // 只有當當前是 pointer 模式時才更新控制值
+                    if (this.currentControlMode === 'pointer') {
+                        // 更新控制值
+                        if (event.type === 'wheel') {
+                            // 滾輪事件：使用滑鼠當前位置
+                            this.updateFromPointer(this.mouse.x, this.mouse.y);
+                        } else {
+                            // 滑鼠/觸控事件：使用事件位置
+                            const x = event.clientX || event.touches?.[0]?.clientX || 0;
+                            const y = event.clientY || event.touches?.[0]?.clientY || 0;
+                            this.updateFromPointer(x, y);
+                        }
+                        
+                        // 🕹️ 局部視角控制 - 只在局部視角生效
+                        if (this.viewState === 'detail' && !this.isTransitioning) {
+                            this.updateDetailViewControl(this.currentOffsetX, this.currentOffsetY);
+                        }
                     }
                 };
 
@@ -1290,26 +1220,20 @@
                 document.addEventListener('mousedown', handleFirstInteraction);
                 document.addEventListener('touchstart', handleFirstInteraction);
 
-                // 🎮 註冊滑鼠控制事件（僅真實滑鼠事件）
-                const mouseEvents = ['pointerdown', 'pointermove'];
-                mouseEvents.forEach(eventType => {
+                // 🎮 註冊所有互動事件（用於自動切換）
+                const interactionEvents = ['touchstart', 'pointermove', 'mousedown', 'wheel'];
+                interactionEvents.forEach(eventType => {
                     document.addEventListener(eventType, (event) => {
-                        // 只處理真實滑鼠事件，忽略觸控和觸控筆
-                        if (event.pointerType === 'mouse') {
-                            // 記錄最後滑鼠活動時間
-                            this.lastPointerTime = Date.now();
-                            
-                            // 如果當前是陀螺儀模式，切換到指針模式
-                            if (this.currentControlMode === 'gyro') {
-                                this.currentControlMode = 'pointer';
-                                console.log('🎮 檢測到滑鼠活動，切換到指針控制模式');
-                            }
+                        // 記錄最後互動時間
+                        this.lastPointerTime = Date.now();
+                        
+                        // 只有真滑鼠才切換到 pointer 控制
+                        if (event.pointerType === 'mouse' && this.currentControlMode === 'gyro') {
+                            this.currentControlMode = 'pointer';
+                            console.log('🎮 檢測到滑鼠互動，切換到指針控制模式');
                         }
                     }, { passive: true });
                 });
-
-                // 🎮 檢測桌面操作體驗並調整初始控制模式
-                this.detectAndAdjustControlMode();
 
                 // 視窗大小調整
                 window.addEventListener('resize', () => {

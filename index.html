@@ -397,6 +397,10 @@
                 this.PARALLAX_INTENSITY = 0.27; // 主要控制參數：控制滑鼠/傾斜輸入的影響程度 (建議範圍: 0.05-0.3)
                 this.DEPTH_SENSITIVITY = 0.5;  // 深度圖敏感度：控制深度差異的視差幅度 (建議範圍: 0.1-0.5)
                 
+                // 📱 行動裝置陀螺儀控制
+                this.GYRO_SENSITIVITY = 1.0;    // 陀螺儀靈敏度：控制裝置傾斜的敏感程度 (建議範圍: 0.5-2.0)
+                this.GYRO_INVERT_X = true;       // 是否反轉X軸 (左右傾斜)：true=裝置左傾時畫面右移
+                
                 // 🖼️ 統一圖片大小控制
                 this.IMAGE_SCALE = 1.02;        // 圖片縮放比例：控制封面圖和主圖的大小 (建議範圍: 0.5-1.5)
                 
@@ -423,10 +427,21 @@
                  * - 數值越大，深度圖的白色和黑色區域視差差異越大
                  * - 影響視差的"深度感"
                  * 
+                 * GYRO_SENSITIVITY：
+                 * - 控制行動裝置陀螺儀的敏感程度
+                 * - 數值越大，裝置傾斜時視差效果越明顯
+                 * - 僅影響行動裝置的傾斜控制
+                 * 
+                 * GYRO_INVERT_X：
+                 * - 控制是否反轉左右傾斜的方向
+                 * - true：裝置左傾時畫面向右移動（更直觀）
+                 * - false：裝置左傾時畫面向左移動
+                 * 
                  * 🎯 調整建議：
                  * - 想要更敏感的滑鼠控制 → 增加 PARALLAX_INTENSITY
+                 * - 想要更敏感的陀螺儀控制 → 增加 GYRO_SENSITIVITY
                  * - 想要更強烈的深度效果 → 增加 DEPTH_SENSITIVITY  
-                 * - 想要更細膩的效果 → 同時降低兩個數值
+                 * - 想要更細膩的效果 → 同時降低所有數值
                  */
                 
                 // 圖層資訊 - 按照從後到前的順序（7最後面，1最前面）
@@ -878,9 +893,14 @@
                             const deltaBeta = (event.beta || 0) - this.baseBeta;     // 前後傾
                             const deltaGamma = (event.gamma || 0) - this.baseGamma; // 左右傾
                             
-                            // 將差值映射到視差位移範圍 (-1 ~ +1)
-                            const offsetX = THREE.MathUtils.clamp(deltaGamma / 45, -1, 1); // 左右傾對應X軸
-                            const offsetY = THREE.MathUtils.clamp(deltaBeta / 45, -1, 1);  // 前後傾對應Y軸
+                            // 將差值映射到視差位移範圍 (-1 ~ +1)，應用靈敏度參數
+                            let offsetX = THREE.MathUtils.clamp((deltaGamma / 45) * this.GYRO_SENSITIVITY, -1, 1); // 左右傾對應X軸
+                            const offsetY = THREE.MathUtils.clamp((deltaBeta / 45) * this.GYRO_SENSITIVITY, -1, 1);  // 前後傾對應Y軸
+                            
+                            // 🔄 應用左右反轉設定
+                            if (this.GYRO_INVERT_X) {
+                                offsetX = -offsetX; // 反轉X軸：裝置左傾時畫面右移
+                            }
                             
                             // 更新orientation值
                             this.orientation.x = offsetX;

@@ -21,6 +21,37 @@
             max-height: 100vh;
             overflow: hidden;
         }
+        
+        /* 📱 高解析螢幕支援：確保元素在高解析螢幕上清晰顯示 */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            /* 高解析螢幕優化 */
+            * {
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                text-rendering: optimizeLegibility;
+            }
+            
+            /* 確保按鈕在高解析螢幕上邊緣清晰 */
+            #back-button, #fullscreen-button {
+                -webkit-backface-visibility: hidden;
+                backface-visibility: hidden;
+                transform: translateZ(0);
+            }
+            
+            /* 確保載入動畫在高解析螢幕上流暢 */
+            .elegant-spinner, .spinner-ring {
+                -webkit-backface-visibility: hidden;
+                backface-visibility: hidden;
+                transform: translateZ(0);
+            }
+            
+            /* 確保粒子效果在高解析螢幕上清晰 */
+            .particle {
+                -webkit-backface-visibility: hidden;
+                backface-visibility: hidden;
+                transform: translateZ(0);
+            }
+        }
 
         body {
             background: linear-gradient(135deg, #000000, #1a1a1a);
@@ -292,26 +323,26 @@
         @keyframes titleGlow {
             0% { 
                 text-shadow: 0 0 20px rgba(244, 227, 212, 0.5);
-                transform: scale(1);
+                transform: scale(1) translateZ(0);
             }
             100% { 
                 text-shadow: 0 0 30px rgba(244, 227, 212, 0.8), 0 0 40px rgba(220, 156, 59, 0.3);
-                transform: scale(1.02);
+                transform: scale(1.02) translateZ(0);
             }
         }
 
         @keyframes elegantSpin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% { transform: rotate(0deg) translateZ(0); }
+            100% { transform: rotate(360deg) translateZ(0); }
         }
 
         @keyframes dotPulse {
             0%, 100% { 
-                transform: scale(1); 
+                transform: scale(1) translateZ(0); 
                 opacity: 0.3; 
             }
             50% { 
-                transform: scale(1.3); 
+                transform: scale(1.3) translateZ(0); 
                 opacity: 1; 
                 box-shadow: 0 0 15px rgba(220, 156, 59, 0.8);
             }
@@ -319,18 +350,18 @@
 
         @keyframes particleFloat {
             0% {
-                transform: translateY(0) scale(0);
+                transform: translateY(0) scale(0) translateZ(0);
                 opacity: 0;
             }
             10% {
                 opacity: 1;
-                transform: translateY(-20px) scale(1);
+                transform: translateY(-20px) scale(1) translateZ(0);
             }
             90% {
                 opacity: 1;
             }
             100% {
-                transform: translateY(-250px) scale(1);
+                transform: translateY(-250px) scale(1) translateZ(0);
                 opacity: 0;
             }
         }
@@ -475,27 +506,27 @@
         #canvas {
             display: block;
             z-index: 1000; /* 內容層：最下層 */
-            /* 🖥️ 確保canvas正確縮放並保持比例 */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw !important;
-            height: 100vh !important;
-            /* 確保canvas不會被擠壓變形 */
-            object-fit: cover;
+            width: 100vw;
+            height: 100vh;
+            /* 📱 高解析螢幕支援：確保canvas在高解析螢幕上清晰 */
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
-
+        
         #loading-canvas {
             display: block;
             z-index: 2000; /* 載入層 */
-            /* 🖥️ 確保載入canvas正確縮放並保持比例 */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw !important;
-            height: 100vh !important;
-            /* 確保載入canvas不會被擠壓變形 */
-            object-fit: cover;
+            width: 100vw;
+            height: 100vh;
+            /* 📱 高解析螢幕支援：確保載入canvas在高解析螢幕上清晰 */
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
 
         /* 觸控裝置：完全禁用hover效果 */
@@ -703,6 +734,7 @@
 <body>
     <div id="container">
         <div id="loading-cover">
+            <canvas id="loading-canvas"></canvas>
         </div>
         
         <div id="loading">
@@ -756,10 +788,8 @@
             </div>
         </div>
         
+        <canvas id="canvas"></canvas>
     </div>
-    
-    <canvas id="loading-canvas"></canvas>
-    <canvas id="canvas"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -872,17 +902,6 @@
                 this.MIN_OPACITY_FACTOR = 0.5;             // 最遠時的最小透明度（50%）
                 this.DISTANCE_LERP_SPEED = 0.5;            // 距離動畫過渡速度
 
-                // 🖥️ 高解析螢幕支援
-                this.maxPixelRatio = 2;                     // 最大像素比例（兼顧效能）
-                this.currentPixelRatio = 1;                 // 當前像素比例
-                this.fpsMonitor = {                         // FPS監控
-                    frames: 0,
-                    lastTime: 0,
-                    currentFps: 60,
-                    lowFpsThreshold: 30,                    // 低FPS閾值
-                    highFpsThreshold: 55                    // 高FPS閾值
-                };
-
                 /*
                  * 📖 參數說明：
                  * 
@@ -937,62 +956,6 @@
             detectMobile() {
                 return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                        window.innerWidth <= 768;
-            }
-
-            // 🖥️ 設定渲染器像素比例
-            setPixelRatio(renderer) {
-                const devicePixelRatio = window.devicePixelRatio || 1;
-                this.currentPixelRatio = Math.min(devicePixelRatio, this.maxPixelRatio);
-                renderer.setPixelRatio(this.currentPixelRatio);
-                console.log(`🖥️ 設定像素比例: ${this.currentPixelRatio} (裝置: ${devicePixelRatio}, 最大: ${this.maxPixelRatio})`);
-            }
-
-            // 🖥️ 更新渲染器大小（包含pixelRatio）
-            updateRendererSize(renderer) {
-                // 設定渲染器的內部尺寸（包含pixelRatio）
-                renderer.setSize(window.innerWidth, window.innerHeight, false);
-                
-                // 🖥️ 確保畫布在CSS中正確縮放（保持視窗大小）
-                const canvas = renderer.domElement;
-                canvas.style.width = window.innerWidth + 'px';
-                canvas.style.height = window.innerHeight + 'px';
-                
-                console.log(`🖥️ 更新渲染器大小: ${window.innerWidth}x${window.innerHeight}, 像素比例: ${this.currentPixelRatio}, 實際畫布: ${canvas.width}x${canvas.height}`);
-            }
-
-            // 🖥️ FPS監控和自動調整pixelRatio
-            updateFpsMonitor() {
-                this.fpsMonitor.frames++;
-                const currentTime = performance.now();
-                
-                if (currentTime - this.fpsMonitor.lastTime >= 1000) {
-                    this.fpsMonitor.currentFps = this.fpsMonitor.frames;
-                    this.fpsMonitor.frames = 0;
-                    this.fpsMonitor.lastTime = currentTime;
-                    
-                    // 自動調整pixelRatio
-                    this.autoAdjustPixelRatio();
-                }
-            }
-
-            // 🖥️ 自動調整像素比例
-            autoAdjustPixelRatio() {
-                const currentFps = this.fpsMonitor.currentFps;
-                const devicePixelRatio = window.devicePixelRatio || 1;
-                
-                if (currentFps < this.fpsMonitor.lowFpsThreshold && this.currentPixelRatio > 1) {
-                    // FPS太低，降低pixelRatio
-                    this.currentPixelRatio = Math.max(1, this.currentPixelRatio - 0.5);
-                    this.setPixelRatio(this.renderer);
-                    this.setPixelRatio(this.loadingRenderer);
-                    console.log(`🖥️ FPS過低(${currentFps})，降低像素比例至: ${this.currentPixelRatio}`);
-                } else if (currentFps > this.fpsMonitor.highFpsThreshold && this.currentPixelRatio < Math.min(devicePixelRatio, this.maxPixelRatio)) {
-                    // FPS足夠高，提高pixelRatio
-                    this.currentPixelRatio = Math.min(devicePixelRatio, this.maxPixelRatio, this.currentPixelRatio + 0.5);
-                    this.setPixelRatio(this.renderer);
-                    this.setPixelRatio(this.loadingRenderer);
-                    console.log(`🖥️ FPS良好(${currentFps})，提高像素比例至: ${this.currentPixelRatio}`);
-                }
             }
 
             // 🎛️ 獲取當前螢幕方向
@@ -1266,9 +1229,20 @@
                     antialias: true,
                     alpha: true
                 });
-                // 🖥️ 設定高解析螢幕支援
-                this.setPixelRatio(this.loadingRenderer);
-                this.updateRendererSize(this.loadingRenderer);
+                
+                // 📱 高解析螢幕支援：設定像素比例
+                const maxRatio = 2; // 兼顧效能的上限
+                const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+                this.loadingRenderer.setPixelRatio(pixelRatio);
+                
+                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                
+                // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
+                const loadingCanvas = document.getElementById('loading-canvas');
+                if (loadingCanvas) {
+                    loadingCanvas.style.width = window.innerWidth + 'px';
+                    loadingCanvas.style.height = window.innerHeight + 'px';
+                }
                 this.loadingRenderer.setClearColor(0x000000, 1);
             }
 
@@ -1529,12 +1503,6 @@
                 
                 // 🔍 更新局部圖層的位置和縮放
                 this.updateDetailLayersLayout();
-                
-                // 🖥️ 確保載入相機也更新投影矩陣
-                if (this.loadingCamera) {
-                    this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
-                    this.loadingCamera.updateProjectionMatrix();
-                }
             }
 
             setupScene() {
@@ -1556,9 +1524,20 @@
                     antialias: true,
                     alpha: true
                 });
-                // 🖥️ 設定高解析螢幕支援
-                this.setPixelRatio(this.renderer);
-                this.updateRendererSize(this.renderer);
+                
+                // 📱 高解析螢幕支援：設定像素比例
+                const maxRatio = 2; // 兼顧效能的上限
+                const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+                this.renderer.setPixelRatio(pixelRatio);
+                
+                this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+                
+                // 📱 確保canvas元素在DOM中的顯示尺寸正確
+                const canvas = document.getElementById('canvas');
+                if (canvas) {
+                    canvas.style.width = window.innerWidth + 'px';
+                    canvas.style.height = window.innerHeight + 'px';
+                }
                 this.renderer.setClearColor(0x000000, 1);
                 
                 // 啟用深度測試以確保正確的圖層順序
@@ -1622,15 +1601,33 @@
                             // 強制觸發resize事件處理邏輯
                             this.camera.aspect = window.innerWidth / window.innerHeight;
                             this.camera.updateProjectionMatrix();
-                            // 🖥️ 更新主渲染器大小（包含pixelRatio）
-                            this.updateRendererSize(this.renderer);
+                            
+                            // 📱 高解析螢幕支援：重新設定像素比例和大小
+                            const maxRatio = 2;
+                            const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+                            this.renderer.setPixelRatio(pixelRatio);
+                            this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+                            
+                            // 📱 確保canvas元素在DOM中的顯示尺寸正確
+                            const canvas = document.getElementById('canvas');
+                            if (canvas) {
+                                canvas.style.width = window.innerWidth + 'px';
+                                canvas.style.height = window.innerHeight + 'px';
+                            }
                             
                             // 同時調整載入場景
                             if (this.loadingCamera && this.loadingRenderer) {
                                 this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
                                 this.loadingCamera.updateProjectionMatrix();
-                                // 🖥️ 更新載入渲染器大小（包含pixelRatio）
-                                this.updateRendererSize(this.loadingRenderer);
+                                this.loadingRenderer.setPixelRatio(pixelRatio);
+                                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                                
+                                // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
+                                const loadingCanvas = document.getElementById('loading-canvas');
+                                if (loadingCanvas) {
+                                    loadingCanvas.style.width = window.innerWidth + 'px';
+                                    loadingCanvas.style.height = window.innerHeight + 'px';
+                                }
                             }
                             
                             // 重新計算所有圖層尺寸
@@ -1724,15 +1721,33 @@
                 window.addEventListener('resize', () => {
                     this.camera.aspect = window.innerWidth / window.innerHeight;
                     this.camera.updateProjectionMatrix();
-                    // 🖥️ 更新主渲染器大小（包含pixelRatio）
-                    this.updateRendererSize(this.renderer);
+                    
+                    // 📱 高解析螢幕支援：重新設定像素比例和大小
+                    const maxRatio = 2;
+                    const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+                    this.renderer.setPixelRatio(pixelRatio);
+                    this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+                    
+                    // 📱 確保canvas元素在DOM中的顯示尺寸正確
+                    const canvas = document.getElementById('canvas');
+                    if (canvas) {
+                        canvas.style.width = window.innerWidth + 'px';
+                        canvas.style.height = window.innerHeight + 'px';
+                    }
                     
                     // 同時調整載入場景
                     if (this.loadingCamera && this.loadingRenderer) {
                         this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
                         this.loadingCamera.updateProjectionMatrix();
-                        // 🖥️ 更新載入渲染器大小（包含pixelRatio）
-                        this.updateRendererSize(this.loadingRenderer);
+                        this.loadingRenderer.setPixelRatio(pixelRatio);
+                        this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                        
+                        // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
+                        const loadingCanvas = document.getElementById('loading-canvas');
+                        if (loadingCanvas) {
+                            loadingCanvas.style.width = window.innerWidth + 'px';
+                            loadingCanvas.style.height = window.innerHeight + 'px';
+                        }
                     }
 
                     // 自動重新計算並調整所有圖層的 PlaneGeometry
@@ -2220,9 +2235,6 @@
 
             animate() {
                 requestAnimationFrame(() => this.animate());
-                
-                // 🖥️ FPS監控和自動調整pixelRatio
-                this.updateFpsMonitor();
                 
                 // 🎮 控制模式監控
                 this.monitorControlMode();

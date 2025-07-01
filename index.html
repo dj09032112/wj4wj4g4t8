@@ -1785,6 +1785,9 @@
                     // 🔍 載入局部圖層
                     this.loadDetailLayers();
                     
+                    // 📱 確保所有圖層尺寸正確（解決手機初始載入大小異常問題）
+                    this.updateAllLayerSizes();
+                    
                     // 載入完成後，開始淡出封面
                     setTimeout(() => {
                         this.startFadeOut();
@@ -1841,6 +1844,9 @@
                     
                     // 🌫️ 確保初始狀態沒有模糊效果
                     this.resetTransitionBlur();
+                    
+                    // 📱 確保所有圖層尺寸正確（解決手機初始載入大小異常問題）
+                    this.updateAllLayerSizes();
                     
                     document.getElementById('loading').style.display = 'none';
                 }

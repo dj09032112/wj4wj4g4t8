@@ -1404,6 +1404,8 @@
                 }
                 // 更新所有 PlaneGeometry
                 this.updateAllLayerSizes?.();
+                // log
+                console.log('📐 Resize 完成:', window.innerWidth, window.innerHeight);
             }
 
             // 更新所有圖層的尺寸
@@ -1516,8 +1518,17 @@
                         this.baseX = null;
                         this.baseY = null;
                         this.smoothedDelta = { x: 0, y: 0 };
-                        // ★ 重新計算畫面尺寸
-                        this.handleResize();
+                        // 延遲到下一個 resize 事件或 2 個 requestAnimationFrame 後再執行
+                        let waited = 0;
+                        const waitResize = () => {
+                            if (waited < 2) {
+                                waited++;
+                                requestAnimationFrame(waitResize);
+                            } else {
+                                this.handleResize(); // 這時 innerWidth / innerHeight 已正確
+                            }
+                        };
+                        waitResize();
                     }
                 };
 

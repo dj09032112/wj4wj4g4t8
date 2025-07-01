@@ -1022,23 +1022,12 @@
                        window.innerWidth <= 768;
             }
 
-            // 🎛️ 獲取當前螢幕方向
-            getScreenOrientation() {
-                // 優先使用 Screen Orientation API
-                if (screen.orientation && screen.orientation.type) {
-                    return screen.orientation.type.split('-')[0] + '-' + screen.orientation.type.split('-')[1];
-                }
-                
-                // 回退到角度判斷
-                const angle = screen.orientation ? screen.orientation.angle : window.orientation;
-                switch (angle) {
-                    case 0: return 'portrait-primary';
-                    case 90: return 'landscape-primary';
-                    case -90:
-                    case 270: return 'landscape-secondary';
-                    case 180: return 'portrait-secondary';
-                    default: return 'portrait-primary';
-                }
+            // 🎛️ 簡化螢幕方向偵測（實時更新）
+            updateScreenOrientation() {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                const isPortrait = h >= w;
+                this.currentOrientation = isPortrait ? 'portrait-primary' : 'landscape-primary';
             }
 
             // 🎛️ 計算最短角度差（避免0↔360跳值）
@@ -1047,44 +1036,18 @@
                 return diff;
             }
 
-            // 🎛️ 根據螢幕方向轉換陀螺儀數值（新版：使用α控制水平旋轉）
+            // 🎛️ 簡化陀螺儀映射邏輯（α控制水平旋轉）
             transformGyroData(dAlpha, dBeta, dGamma) {
                 let x, y;
                 
-                // 新的陀螺儀軸向說明：
-                // dAlpha: 水平旋轉差值（左右轉身）→ 控制 X 軸視差
-                // dBeta: 前後俯仰差值 → 控制 Y 軸視差  
-                // dGamma: 左右傾斜差值 → 在橫向模式時用於 Y 軸
-                
-                switch (this.currentOrientation) {
-                    case 'portrait-primary':
-                        // 直立正向：α控制水平旋轉(X軸)，β控制俯仰(Y軸)
-                        x = dAlpha;  // 水平旋轉 → X軸（左右移動）
-                        y = dBeta;   // 前後俯仰 → Y軸（上下移動）
-                        break;
-                        
-                    case 'portrait-secondary':
-                        // 直立倒置：需要反轉軸向
-                        x = -dAlpha; // 水平旋轉反轉 → X軸
-                        y = -dBeta;  // 前後俯仰反轉 → Y軸
-                        break;
-                        
-                    case 'landscape-primary':
-                        // 橫向正向：α控制水平旋轉(X軸)，γ控制俯仰(Y軸)
-                        x = dAlpha;  // 水平旋轉 → X軸（左右移動）
-                        y = -dGamma; // 左右傾斜反轉 → Y軸（上下移動）
-                        break;
-                        
-                    case 'landscape-secondary':
-                        // 橫向倒置：需要反轉軸向
-                        x = -dAlpha; // 水平旋轉反轉 → X軸
-                        y = dGamma;  // 左右傾斜 → Y軸
-                        break;
-                        
-                    default:
-                        // 預設使用直立正向的映射
-                        x = dAlpha;
-                        y = dBeta;
+                if (this.currentOrientation.startsWith('portrait')) {
+                    // 直立：α→X, β→Y
+                    x = dAlpha;
+                    y = dBeta;
+                } else {
+                    // 橫向：α→X, γ→Y（取反轉避免上下相反）
+                    x = dAlpha;
+                    y = -dGamma;
                 }
                 
                 return { x, y };
@@ -1158,7 +1121,7 @@
                 const beta = event.beta || 0;
                 const gamma = event.gamma || 0;
 
-                // 第一次進來時建立基準值
+                // 第一次進來時或方向變化後建立基準值
                 if (this.baseAlpha === null) {
                     this.baseAlpha = alpha;
                     this.baseBeta = beta;
@@ -1390,6 +1353,9 @@
                 this.createLoadingParticles(); // 創建載入粒子效果
                 this.randomizeSpinnerRings(); // 設定隨機旋轉效果
                 
+                // 🎛️ 初始化螢幕方向偵測
+                this.updateScreenOrientation();
+                
                 // 🎭 設定層級引用
                 this.loadingLayer = this.loadingScene; // 載入層：Three.js 場景
                 this.uiLayer = document.getElementById('back-button'); // UI層：DOM 元素
@@ -1589,7 +1555,7 @@
                         this.smoothedDelta = { x: 0, y: 0 };
                         this.baseX = null;        // 保留向後相容
                         this.baseY = null;
-                        this.baseAlpha = null;    // 新的角度基準重設
+                        this.baseAlpha = null;    // 重設角度基準
                         this.baseBeta = null;
                         this.baseGamma = null;
                         this.isResetting = false;
@@ -1712,58 +1678,54 @@
                 
                 // 1. 螢幕方向變化監聽（所有裝置）
                 const handleOrientationChange = () => {
-                    const newOrientation = this.getScreenOrientation();
-                    if (newOrientation !== this.currentOrientation) {
-                        console.log(`🔄 螢幕方向變化: ${this.currentOrientation} → ${newOrientation}`);
-                        this.currentOrientation = newOrientation;
-                        // 重設基準值，避免翻轉時跳動
-                        this.baseX = null;
-                        this.baseY = null;
-                        this.baseAlpha = null;  // 重設新的角度基準
-                        this.baseBeta = null;
-                        this.baseGamma = null;
-                        this.smoothedDelta = { x: 0, y: 0 };
+                    this.updateScreenOrientation(); // 實時更新方向
+                    // 重設基準值，避免翻轉時跳動
+                    this.baseX = null;
+                    this.baseY = null;
+                    this.baseAlpha = null;
+                    this.baseBeta = null;
+                    this.baseGamma = null;
+                    this.smoothedDelta = { x: 0, y: 0 };
+                    
+                    // 📱 修正：螢幕方向變化時強制重新計算容器大小
+                    // 延遲執行，確保瀏覽器完成方向變化
+                    setTimeout(() => {
+                        console.log('🔄 方向變化後重新計算容器大小');
+                        // 強制觸發resize事件處理邏輯
+                        this.camera.aspect = window.innerWidth / window.innerHeight;
+                        this.camera.updateProjectionMatrix();
                         
-                        // 📱 修正：螢幕方向變化時強制重新計算容器大小
-                        // 延遲執行，確保瀏覽器完成方向變化
-                        setTimeout(() => {
-                            console.log('🔄 方向變化後重新計算容器大小');
-                            // 強制觸發resize事件處理邏輯
-                            this.camera.aspect = window.innerWidth / window.innerHeight;
-                            this.camera.updateProjectionMatrix();
+                        // 📱 高解析螢幕支援：重新設定像素比例和大小
+                        const maxRatio = 2;
+                        const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+                        this.renderer.setPixelRatio(pixelRatio);
+                        this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+                        
+                        // 📱 確保canvas元素在DOM中的顯示尺寸正確
+                        const canvas = document.getElementById('canvas');
+                        if (canvas) {
+                            canvas.style.width = window.innerWidth + 'px';
+                            canvas.style.height = window.innerHeight + 'px';
+                        }
+                        
+                        // 同時調整載入場景
+                        if (this.loadingCamera && this.loadingRenderer) {
+                            this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                            this.loadingCamera.updateProjectionMatrix();
+                            this.loadingRenderer.setPixelRatio(pixelRatio);
+                            this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
                             
-                            // 📱 高解析螢幕支援：重新設定像素比例和大小
-                            const maxRatio = 2;
-                            const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
-                            this.renderer.setPixelRatio(pixelRatio);
-                            this.renderer.setSize(window.innerWidth, window.innerHeight, false);
-                            
-                            // 📱 確保canvas元素在DOM中的顯示尺寸正確
-                            const canvas = document.getElementById('canvas');
-                            if (canvas) {
-                                canvas.style.width = window.innerWidth + 'px';
-                                canvas.style.height = window.innerHeight + 'px';
+                            // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
+                            const loadingCanvas = document.getElementById('loading-canvas');
+                            if (loadingCanvas) {
+                                loadingCanvas.style.width = window.innerWidth + 'px';
+                                loadingCanvas.style.height = window.innerHeight + 'px';
                             }
-                            
-                            // 同時調整載入場景
-                            if (this.loadingCamera && this.loadingRenderer) {
-                                this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
-                                this.loadingCamera.updateProjectionMatrix();
-                                this.loadingRenderer.setPixelRatio(pixelRatio);
-                                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
-                                
-                                // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
-                                const loadingCanvas = document.getElementById('loading-canvas');
-                                if (loadingCanvas) {
-                                    loadingCanvas.style.width = window.innerWidth + 'px';
-                                    loadingCanvas.style.height = window.innerHeight + 'px';
-                                }
-                            }
-                            
-                            // 重新計算所有圖層尺寸
-                            this.updateAllLayerSizes();
-                        }, 100); // 延遲100ms確保方向變化完成
-                    }
+                        }
+                        
+                        // 重新計算所有圖層尺寸
+                        this.updateAllLayerSizes();
+                    }, 100); // 延遲100ms確保方向變化完成
                 };
 
                 // 監聽方向變化事件
@@ -1821,7 +1783,10 @@
                     });
                 }
 
-                // 4. 陀螺儀事件（行動裝置）- 移除重複註冊，統一在 startGyroControl() 中處理
+                // 4. 陀螺儀事件（行動裝置）
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', this.gyroUpdate.bind(this));
+                }
 
                 // 5. 陀螺儀授權按鈕事件
                 const enableGyroBtn = document.getElementById('enable-gyro-btn');
@@ -1846,6 +1811,9 @@
 
                 // 視窗大小調整
                 window.addEventListener('resize', () => {
+                    // 🎛️ 實時更新螢幕方向
+                    this.updateScreenOrientation();
+                    
                     this.camera.aspect = window.innerWidth / window.innerHeight;
                     this.camera.updateProjectionMatrix();
                     

@@ -1156,6 +1156,9 @@
                 });
                 this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
                 this.loadingRenderer.setClearColor(0x000000, 1);
+                
+                // 確保第一次載入渲染器尺寸正確
+                this.handleResize();
             }
 
             loadLoadingCover() {
@@ -1385,6 +1388,23 @@
                 });
             }
 
+            // 統一的尺寸更新入口
+            handleResize() {
+                // 1) 更新 renderer & loadingRenderer
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                
+                if (this.loadingRenderer && this.loadingCamera) {
+                    this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                    this.loadingCamera.updateProjectionMatrix();
+                    this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
+                }
+                
+                // 2) 重新計算所有 PlaneGeometry 尺寸
+                this.updateAllLayerSizes();
+            }
+
             // 更新所有圖層的尺寸
             updateAllLayerSizes() {
                 // 更新載入場景中的網格
@@ -1477,6 +1497,9 @@
                 console.log('🔴 互動點點: renderOrder 1 (最上層)');
                 console.log('🔍 局部圖層: z軸 0.06~0.08 (dot1:0.06, dot2:0.07, dot3:0.08), depthWrite:false');
                 console.log('🖼️ 主要圖層: renderOrder 0 (最下層)');
+                
+                // 確保第一次載入渲染器尺寸正確
+                this.handleResize();
             }
 
             setupEventListeners() {
@@ -1492,29 +1515,8 @@
                         this.baseX = null;
                         this.baseY = null;
                         this.smoothedDelta = { x: 0, y: 0 };
-                        
-                        // 📱 強制重新計算視窗尺寸，解決UI大小問題
-                        setTimeout(() => {
-                            // 延遲執行，確保瀏覽器已更新視窗尺寸
-                            this.camera.aspect = window.innerWidth / window.innerHeight;
-                            this.camera.updateProjectionMatrix();
-                            this.renderer.setSize(window.innerWidth, window.innerHeight);
-                            
-                            // 同時調整載入場景
-                            if (this.loadingCamera && this.loadingRenderer) {
-                                this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
-                                this.loadingCamera.updateProjectionMatrix();
-                                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
-                            }
-                            
-                            // 重新計算所有圖層尺寸
-                            this.updateAllLayerSizes();
-                            
-                            // 🔧 強制觸發一次視窗大小調整事件，確保所有UI元素都重新計算
-                            window.dispatchEvent(new Event('resize'));
-                            
-                            console.log(`📱 方向變化後重新計算尺寸: ${window.innerWidth}x${window.innerHeight}`);
-                        }, 100); // 延遲100ms確保瀏覽器已更新
+                        // ★ 重新計算畫面尺寸
+                        this.handleResize();
                     }
                 };
 
@@ -1601,22 +1603,7 @@
 
                 // 視窗大小調整
                 window.addEventListener('resize', () => {
-                    // 📱 強制重新計算視窗尺寸，解決UI大小問題
-                    this.camera.aspect = window.innerWidth / window.innerHeight;
-                    this.camera.updateProjectionMatrix();
-                    this.renderer.setSize(window.innerWidth, window.innerHeight);
-                    
-                    // 同時調整載入場景
-                    if (this.loadingCamera && this.loadingRenderer) {
-                        this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
-                        this.loadingCamera.updateProjectionMatrix();
-                        this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
-                    }
-
-                    // 自動重新計算並調整所有圖層的 PlaneGeometry
-                    this.updateAllLayerSizes();
-                    
-                    console.log(`📱 視窗大小調整: ${window.innerWidth}x${window.innerHeight}`);
+                    this.handleResize();
                 });
             }
 

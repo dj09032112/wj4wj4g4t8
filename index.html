@@ -333,11 +333,13 @@
             opacity: 0;
             transform: translateY(20px);
             transition: all 0.5s ease;
+            pointer-events: none; /* 修正：隱藏時不阻擋互動 */
         }
 
         .gyro-permission.show {
             opacity: 1;
             transform: translateY(0);
+            pointer-events: auto; /* 顯示時才可互動 */
         }
 
         .gyro-permission-content {

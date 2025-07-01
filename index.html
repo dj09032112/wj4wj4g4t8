@@ -597,7 +597,7 @@
             display: flex !important;
         }
 
-        /* 行動裝置：統一的按鈕大小控制 */
+        /* 行動裝置：顯示全螢幕按鈕 - 使用更寬鬆的條件 */
         @media (max-width: 1024px) {
             #fullscreen-button {
                 display: flex !important;
@@ -605,38 +605,16 @@
         }
 
         @media (max-width: 768px) {
-            /* 返回按鈕和全螢幕按鈕統一大小 */
-            #back-button, #fullscreen-button {
-                width: 40px;
-                height: 40px;
-                top: 20px;
-                border-radius: 50%;
-            }
-            
-            #back-button {
-                left: 20px;
-            }
-            
-            #fullscreen-button {
-                right: 20px;
-            }
-            
-            #back-button svg, #fullscreen-button svg {
-                width: 18px;
-                height: 18px;
-            }
-            
-            /* 載入容器調整 */
             .loading-container {
                 padding: 20px;
             }
-        }
             
-        .elegant-spinner {
+            .elegant-spinner {
                 width: 60px;
                 height: 60px;
                 margin: 0 auto 20px;
             }
+        }
     </style>
 </head>
 <body>
@@ -1211,6 +1189,11 @@
                 // 🎮 初始化混合控制系統
                 this.initControlSystem();
                 
+                // 📱 初始化按鈕大小
+                setTimeout(() => {
+                    this.updateButtonSizes();
+                }, 100); // 延遲確保DOM完全載入
+                
                 this.loadLoadingCover(); // 優先載入封面圖
                 this.animate();
             }
@@ -1475,6 +1458,11 @@
                         this.baseX = null;
                         this.baseY = null;
                         this.smoothedDelta = { x: 0, y: 0 };
+                        
+                        // 📱 螢幕方向變化時重新調整按鈕大小
+                        setTimeout(() => {
+                            this.updateButtonSizes();
+                        }, 100); // 延遲100ms確保CSS媒體查詢生效
                     }
                 };
 
@@ -1574,6 +1562,11 @@
 
                     // 自動重新計算並調整所有圖層的 PlaneGeometry
                     this.updateAllLayerSizes();
+                    
+                    // 📱 視窗大小變化時重新調整按鈕大小
+                    setTimeout(() => {
+                        this.updateButtonSizes();
+                    }, 50); // 延遲50ms確保尺寸穩定
                 });
             }
 
@@ -3319,6 +3312,79 @@
             }
 
             // 🔴 ================== 點點過渡透明度控制系統結束 ==================
+
+            // 📱 ================== 按鈕大小適配系統 ==================
+            
+            updateButtonSizes() {
+                const backButton = document.getElementById('back-button');
+                const fullscreenButton = document.getElementById('fullscreen-button');
+                
+                if (!backButton || !fullscreenButton) return;
+                
+                // 獲取當前螢幕尺寸和方向
+                const isMobile = this.isMobile;
+                const isLandscape = window.innerWidth > window.innerHeight;
+                const screenWidth = window.innerWidth;
+                
+                // 計算按鈕大小和位置
+                let buttonSize, iconSize, topPosition, sidePosition;
+                
+                if (isMobile) {
+                    if (screenWidth <= 480) {
+                        // 小螢幕手機
+                        buttonSize = 36;
+                        iconSize = 16;
+                        topPosition = 15;
+                        sidePosition = 15;
+                    } else if (screenWidth <= 768) {
+                        // 中等螢幕手機
+                        buttonSize = 40;
+                        iconSize = 18;
+                        topPosition = 20;
+                        sidePosition = 20;
+                    } else {
+                        // 大螢幕手機/平板
+                        buttonSize = 44;
+                        iconSize = 20;
+                        topPosition = 25;
+                        sidePosition = 25;
+                    }
+                } else {
+                    // 桌面裝置
+                    buttonSize = 44;
+                    iconSize = 20;
+                    topPosition = 25;
+                    sidePosition = 25;
+                }
+                
+                // 應用樣式到返回按鈕
+                backButton.style.width = `${buttonSize}px`;
+                backButton.style.height = `${buttonSize}px`;
+                backButton.style.top = `${topPosition}px`;
+                backButton.style.left = `${sidePosition}px`;
+                
+                const backIcon = backButton.querySelector('svg');
+                if (backIcon) {
+                    backIcon.style.width = `${iconSize}px`;
+                    backIcon.style.height = `${iconSize}px`;
+                }
+                
+                // 應用樣式到全螢幕按鈕
+                fullscreenButton.style.width = `${buttonSize}px`;
+                fullscreenButton.style.height = `${buttonSize}px`;
+                fullscreenButton.style.top = `${topPosition}px`;
+                fullscreenButton.style.right = `${sidePosition}px`;
+                
+                const fullscreenIcon = fullscreenButton.querySelector('svg');
+                if (fullscreenIcon) {
+                    fullscreenIcon.style.width = `${iconSize}px`;
+                    fullscreenIcon.style.height = `${iconSize}px`;
+                }
+                
+                console.log(`📱 按鈕大小已更新: ${buttonSize}px, 圖示: ${iconSize}px, 位置: ${topPosition}px/${sidePosition}px`);
+            }
+            
+            // 📱 ================== 按鈕大小適配系統結束 ==================
         }
 
         // 全域變數用於存取ParallaxViewer實例
@@ -3417,6 +3483,13 @@
                 } else {
                     fullscreenButton.style.display = 'none';
                     console.log('🖥️ 桌面裝置：隱藏全螢幕按鈕');
+                }
+                
+                // 📱 如果ParallaxViewer實例存在，更新按鈕大小
+                if (parallaxViewerInstance && parallaxViewerInstance.updateButtonSizes) {
+                    setTimeout(() => {
+                        parallaxViewerInstance.updateButtonSizes();
+                    }, 50);
                 }
             }
             

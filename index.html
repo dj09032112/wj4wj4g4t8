@@ -588,38 +588,48 @@
                 }
             }
 
-            // 🎛️ 根據螢幕方向轉換陀螺儀數值（包含初始方向補償）
+            // 🎛️ 根據螢幕方向轉換陀螺儀數值
             transformGyroData(alpha, beta, gamma) {
                 let x, y;
                 
+                // 陀螺儀軸向說明：
+                // alpha: 水平旋轉（0-360度，通常不用於視差）
+                // beta: 前後傾斜（-180到180度，前傾為正，後傾為負）
+                // gamma: 左右傾斜（-90到90度，右傾為正，左傾為負）
+                
                 switch (this.currentOrientation) {
                     case 'portrait-primary':
-                        x = gamma;
-                        y = beta;
+                        // 直立正向：gamma控制左右，beta控制上下
+                        x = gamma;  // 左右傾 → X軸（左右移動）
+                        y = beta;   // 前後傾 → Y軸（上下移動）
                         break;
+                        
                     case 'portrait-secondary':
-                        x = -gamma;
-                        y = -beta;
+                        // 直立倒置：需要反轉軸向
+                        x = -gamma; // 左右傾反轉 → X軸
+                        y = -beta;  // 前後傾反轉 → Y軸
                         break;
+                        
                     case 'landscape-primary':
-                        x = beta;
-                        y = -gamma;
+                        // 橫向正向：beta控制左右，gamma控制上下（但方向需要調整）
+                        x = beta;   // 前後傾 → X軸（左右移動）
+                        y = -gamma; // 左右傾反轉 → Y軸（上下移動）
                         break;
+                        
                     case 'landscape-secondary':
-                        x = -beta;
-                        y = gamma;
+                        // 橫向倒置：需要反轉軸向
+                        x = -beta;  // 前後傾反轉 → X軸
+                        y = gamma;  // 左右傾 → Y軸
                         break;
+                        
                     default:
+                        // 預設使用直立正向的映射
                         x = gamma;
                         y = beta;
                 }
                 
-                // 🔧 初始橫向補償：如果初始為橫向，需要額外的軸向補償
-                if (this.initialOrientation.includes('landscape')) {
-                    const tempX = x;
-                    x = y;
-                    y = -tempX;
-                }
+                // 🔧 移除初始橫向補償，因為已經在switch中處理了
+                // 這個補償會導致重複的軸向轉換
                 
                 return { x, y };
             }
@@ -713,13 +723,22 @@
                 this.smoothedDelta.x = this.smoothedDelta.x * (1 - this.SMOOTH_ALPHA) + deltaX * this.SMOOTH_ALPHA;
                 this.smoothedDelta.y = this.smoothedDelta.y * (1 - this.SMOOTH_ALPHA) + deltaY * this.SMOOTH_ALPHA;
 
-                // 更新orientation值（用於原本的視差系統）
-                this.orientation.x = this.smoothedDelta.x;
-                this.orientation.y = this.smoothedDelta.y;
-
-                // 同時更新當前偏移值（用於混合控制系統）
+                // 更新當前偏移值
                 this.currentOffsetX = this.smoothedDelta.x;
                 this.currentOffsetY = this.smoothedDelta.y;
+                
+                // 🔍 調試資訊：每100次輸出一次，避免過多日誌
+                if (!this.debugCounter) this.debugCounter = 0;
+                this.debugCounter++;
+                if (this.debugCounter % 100 === 0) {
+                    console.log('🎛️ 陀螺儀調試:', {
+                        orientation: this.currentOrientation,
+                        raw: { alpha: alpha.toFixed(1), beta: beta.toFixed(1), gamma: gamma.toFixed(1) },
+                        transformed: { x: x.toFixed(1), y: y.toFixed(1) },
+                        delta: { deltaX: deltaX.toFixed(3), deltaY: deltaY.toFixed(3) },
+                        smoothed: { x: this.smoothedDelta.x.toFixed(3), y: this.smoothedDelta.y.toFixed(3) }
+                    });
+                }
             }
 
             // 🎮 滑鼠更新
@@ -1609,14 +1628,10 @@
                     // 桌面版滑鼠控制：使用插值後的滑鼠位置
                     inputX = this.mouse.x * this.parallaxTransitionProgress;
                     inputY = this.mouse.y * this.parallaxTransitionProgress;
-                    
-                    // 同時更新orientation值（用於原本的視差系統）
-                    this.orientation.x = inputX;
-                    this.orientation.y = inputY;
                 } else {
-                    // 陀螺儀控制或行動版：使用orientation值（已經在gyroUpdate中更新）
-                    inputX = this.orientation.x * this.parallaxTransitionProgress;
-                    inputY = this.orientation.y * this.parallaxTransitionProgress;
+                    // 陀螺儀控制或行動版：使用統一的偏移值
+                    inputX = this.currentOffsetX * this.parallaxTransitionProgress;
+                    inputY = this.currentOffsetY * this.parallaxTransitionProgress;
                 }
                 
                 // 🔧 修正：在過渡期間和不同視角下都要處理滑鼠輸入

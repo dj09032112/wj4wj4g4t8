@@ -475,6 +475,21 @@
         #canvas {
             display: block;
             z-index: 1000; /* 內容層：最下層 */
+            /* 🖥️ 確保canvas正確縮放 */
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+        }
+
+        #loading-canvas {
+            display: block;
+            z-index: 2000; /* 載入層 */
+            /* 🖥️ 確保載入canvas正確縮放 */
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
         }
 
         /* 觸控裝置：完全禁用hover效果 */
@@ -850,6 +865,17 @@
                 this.MIN_OPACITY_FACTOR = 0.5;             // 最遠時的最小透明度（50%）
                 this.DISTANCE_LERP_SPEED = 0.5;            // 距離動畫過渡速度
 
+                // 🖥️ 高解析螢幕支援
+                this.maxPixelRatio = 2;                     // 最大像素比例（兼顧效能）
+                this.currentPixelRatio = 1;                 // 當前像素比例
+                this.fpsMonitor = {                         // FPS監控
+                    frames: 0,
+                    lastTime: 0,
+                    currentFps: 60,
+                    lowFpsThreshold: 30,                    // 低FPS閾值
+                    highFpsThreshold: 55                    // 高FPS閾值
+                };
+
                 /*
                  * 📖 參數說明：
                  * 
@@ -904,6 +930,61 @@
             detectMobile() {
                 return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                        window.innerWidth <= 768;
+            }
+
+            // 🖥️ 設定渲染器像素比例
+            setPixelRatio(renderer) {
+                const devicePixelRatio = window.devicePixelRatio || 1;
+                this.currentPixelRatio = Math.min(devicePixelRatio, this.maxPixelRatio);
+                renderer.setPixelRatio(this.currentPixelRatio);
+                console.log(`🖥️ 設定像素比例: ${this.currentPixelRatio} (裝置: ${devicePixelRatio}, 最大: ${this.maxPixelRatio})`);
+            }
+
+            // 🖥️ 更新渲染器大小（包含pixelRatio）
+            updateRendererSize(renderer) {
+                renderer.setSize(window.innerWidth, window.innerHeight, false);
+                
+                // 🖥️ 確保畫布在CSS中正確縮放
+                const canvas = renderer.domElement;
+                canvas.style.width = window.innerWidth + 'px';
+                canvas.style.height = window.innerHeight + 'px';
+                
+                console.log(`🖥️ 更新渲染器大小: ${window.innerWidth}x${window.innerHeight}, 像素比例: ${this.currentPixelRatio}, 實際畫布: ${canvas.width}x${canvas.height}`);
+            }
+
+            // 🖥️ FPS監控和自動調整pixelRatio
+            updateFpsMonitor() {
+                this.fpsMonitor.frames++;
+                const currentTime = performance.now();
+                
+                if (currentTime - this.fpsMonitor.lastTime >= 1000) {
+                    this.fpsMonitor.currentFps = this.fpsMonitor.frames;
+                    this.fpsMonitor.frames = 0;
+                    this.fpsMonitor.lastTime = currentTime;
+                    
+                    // 自動調整pixelRatio
+                    this.autoAdjustPixelRatio();
+                }
+            }
+
+            // 🖥️ 自動調整像素比例
+            autoAdjustPixelRatio() {
+                const currentFps = this.fpsMonitor.currentFps;
+                const devicePixelRatio = window.devicePixelRatio || 1;
+                
+                if (currentFps < this.fpsMonitor.lowFpsThreshold && this.currentPixelRatio > 1) {
+                    // FPS太低，降低pixelRatio
+                    this.currentPixelRatio = Math.max(1, this.currentPixelRatio - 0.5);
+                    this.setPixelRatio(this.renderer);
+                    this.setPixelRatio(this.loadingRenderer);
+                    console.log(`🖥️ FPS過低(${currentFps})，降低像素比例至: ${this.currentPixelRatio}`);
+                } else if (currentFps > this.fpsMonitor.highFpsThreshold && this.currentPixelRatio < Math.min(devicePixelRatio, this.maxPixelRatio)) {
+                    // FPS足夠高，提高pixelRatio
+                    this.currentPixelRatio = Math.min(devicePixelRatio, this.maxPixelRatio, this.currentPixelRatio + 0.5);
+                    this.setPixelRatio(this.renderer);
+                    this.setPixelRatio(this.loadingRenderer);
+                    console.log(`🖥️ FPS良好(${currentFps})，提高像素比例至: ${this.currentPixelRatio}`);
+                }
             }
 
             // 🎛️ 獲取當前螢幕方向
@@ -1177,7 +1258,9 @@
                     antialias: true,
                     alpha: true
                 });
-                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
+                // 🖥️ 設定高解析螢幕支援
+                this.setPixelRatio(this.loadingRenderer);
+                this.updateRendererSize(this.loadingRenderer);
                 this.loadingRenderer.setClearColor(0x000000, 1);
             }
 
@@ -1459,7 +1542,9 @@
                     antialias: true,
                     alpha: true
                 });
-                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                // 🖥️ 設定高解析螢幕支援
+                this.setPixelRatio(this.renderer);
+                this.updateRendererSize(this.renderer);
                 this.renderer.setClearColor(0x000000, 1);
                 
                 // 啟用深度測試以確保正確的圖層順序
@@ -1523,13 +1608,15 @@
                             // 強制觸發resize事件處理邏輯
                             this.camera.aspect = window.innerWidth / window.innerHeight;
                             this.camera.updateProjectionMatrix();
-                            this.renderer.setSize(window.innerWidth, window.innerHeight);
+                            // 🖥️ 更新主渲染器大小（包含pixelRatio）
+                            this.updateRendererSize(this.renderer);
                             
                             // 同時調整載入場景
                             if (this.loadingCamera && this.loadingRenderer) {
                                 this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
                                 this.loadingCamera.updateProjectionMatrix();
-                                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
+                                // 🖥️ 更新載入渲染器大小（包含pixelRatio）
+                                this.updateRendererSize(this.loadingRenderer);
                             }
                             
                             // 重新計算所有圖層尺寸
@@ -1623,13 +1710,15 @@
                 window.addEventListener('resize', () => {
                     this.camera.aspect = window.innerWidth / window.innerHeight;
                     this.camera.updateProjectionMatrix();
-                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    // 🖥️ 更新主渲染器大小（包含pixelRatio）
+                    this.updateRendererSize(this.renderer);
                     
                     // 同時調整載入場景
                     if (this.loadingCamera && this.loadingRenderer) {
                         this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
                         this.loadingCamera.updateProjectionMatrix();
-                        this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
+                        // 🖥️ 更新載入渲染器大小（包含pixelRatio）
+                        this.updateRendererSize(this.loadingRenderer);
                     }
 
                     // 自動重新計算並調整所有圖層的 PlaneGeometry
@@ -2117,6 +2206,9 @@
 
             animate() {
                 requestAnimationFrame(() => this.animate());
+                
+                // 🖥️ FPS監控和自動調整pixelRatio
+                this.updateFpsMonitor();
                 
                 // 🎮 控制模式監控
                 this.monitorControlMode();

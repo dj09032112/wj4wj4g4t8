@@ -1036,49 +1036,36 @@
                 }
             }
 
+            // 角度最短差值
+            shortestAngleDiff(a, b) {
+                let diff = (a - b + 540) % 360 - 180;
+                return diff;
+            }
+
             // 🎛️ 根據螢幕方向轉換陀螺儀數值
-            transformGyroData(alpha, beta, gamma) {
+            transformGyroData(dAlpha, dBeta, dGamma) {
                 let x, y;
-                
-                // 陀螺儀軸向說明：
-                // alpha: 水平旋轉（0-360度，通常不用於視差）
-                // beta: 前後傾斜（-180到180度，前傾為正，後傾為負）
-                // gamma: 左右傾斜（-90到90度，右傾為正，左傾為負）
-                
                 switch (this.currentOrientation) {
                     case 'portrait-primary':
-                        // 直立正向：gamma控制左右，beta控制上下
-                        x = gamma;  // 左右傾 → X軸（左右移動）
-                        y = beta;   // 前後傾 → Y軸（上下移動）
+                        x = dAlpha;
+                        y = this.baseBeta + dBeta;
                         break;
-                        
                     case 'portrait-secondary':
-                        // 直立倒置：需要反轉軸向
-                        x = -gamma; // 左右傾反轉 → X軸
-                        y = -beta;  // 前後傾反轉 → Y軸
+                        x = -dAlpha;
+                        y = -(this.baseBeta + dBeta);
                         break;
-                        
                     case 'landscape-primary':
-                        // 橫向正向：beta控制左右，gamma控制上下（但方向需要調整）
-                        x = beta;   // 前後傾 → X軸（左右移動）
-                        y = -gamma; // 左右傾反轉 → Y軸（上下移動）
+                        x = dAlpha;
+                        y = -dGamma;
                         break;
-                        
                     case 'landscape-secondary':
-                        // 橫向倒置：需要反轉軸向
-                        x = -beta;  // 前後傾反轉 → X軸
-                        y = gamma;  // 左右傾 → Y軸
+                        x = -dAlpha;
+                        y = dGamma;
                         break;
-                        
                     default:
-                        // 預設使用直立正向的映射
-                        x = gamma;
-                        y = beta;
+                        x = dAlpha;
+                        y = dBeta;
                 }
-                
-                // 🔧 移除初始橫向補償，因為已經在switch中處理了
-                // 這個補償會導致重複的軸向轉換
-                
                 return { x, y };
             }
 
@@ -1143,55 +1130,28 @@
             // 🎮 陀螺儀更新
             gyroUpdate(event) {
                 if (this.currentControlMode !== 'gyro') return;
-                
-                // 4. gyroUpdate()：
-                if (this.isResetting) return;   // 動畫期間完全忽略 gyro
-                
-                // 獲取原始陀螺儀數值
+                if (this.isResetting) return;
                 const alpha = event.alpha || 0;
                 const beta = event.beta || 0;
                 const gamma = event.gamma || 0;
-
-                // 根據螢幕方向轉換為統一的X/Y軸
-                const { x, y } = this.transformGyroData(alpha, beta, gamma);
-
-                // 第一次進來時建立基準值
-                if (this.baseX === null) {
-                    this.baseX = x;
-                    this.baseY = y;
-                    console.log('🎛️ 建立統一基準值:', {
-                        orientation: this.currentOrientation,
-                        baseX: this.baseX.toFixed(2),
-                        baseY: this.baseY.toFixed(2)
-                    });
+                // 基準建立
+                if (this.baseAlpha === null) {
+                    this.baseAlpha = alpha;
+                    this.baseBeta = beta;
+                    this.baseGamma = gamma;
                     return;
                 }
-
-                // 計算差值
-                let deltaX = (x - this.baseX) / 45;
-                let deltaY = (y - this.baseY) / 45;
-
-                // 應用靈敏度參數
-                deltaX *= this.GYRO_SENSITIVITY;
-                deltaY *= this.GYRO_SENSITIVITY;
-
-                // 限制範圍
-                deltaX = THREE.MathUtils.clamp(deltaX, -1, 1);
-                deltaY = THREE.MathUtils.clamp(deltaY, -1, 1);
-
-                // 應用左右反轉設定
-                if (this.GYRO_INVERT_X) {
-                    deltaX = -deltaX;
-                }
-
+                const dAlpha = this.shortestAngleDiff(alpha, this.baseAlpha);
+                const dBeta = beta - this.baseBeta;
+                const dGamma = gamma - this.baseGamma;
+                const { x, y } = this.transformGyroData(dAlpha, dBeta, dGamma);
+                let deltaX = THREE.MathUtils.clamp(x / 45 * this.GYRO_SENSITIVITY, -1, 1);
+                let deltaY = THREE.MathUtils.clamp(y / 45 * this.GYRO_SENSITIVITY, -1, 1);
                 // 低通濾波平滑處理
                 this.smoothedDelta.x = this.smoothedDelta.x * (1 - this.SMOOTH_ALPHA) + deltaX * this.SMOOTH_ALPHA;
                 this.smoothedDelta.y = this.smoothedDelta.y * (1 - this.SMOOTH_ALPHA) + deltaY * this.SMOOTH_ALPHA;
-
-                // 更新當前偏移值
                 this.currentOffsetX = this.smoothedDelta.x;
                 this.currentOffsetY = this.smoothedDelta.y;
-                
                 // 🔍 調試資訊：每100次輸出一次，避免過多日誌
                 if (!this.debugCounter) this.debugCounter = 0;
                 this.debugCounter++;
@@ -1717,8 +1677,9 @@
                         console.log(`🔄 螢幕方向變化: ${this.currentOrientation} → ${newOrientation}`);
                         this.currentOrientation = newOrientation;
                         // 重設基準值，避免翻轉時跳動
-                        this.baseX = null;
-                        this.baseY = null;
+                        this.baseAlpha = null;
+                        this.baseBeta = null;
+                        this.baseGamma = null;
                         this.smoothedDelta = { x: 0, y: 0 };
                         
                         // 📱 修正：螢幕方向變化時強制重新計算容器大小

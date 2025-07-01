@@ -2282,6 +2282,9 @@
 
             updateParallax() {
                 if (!this.loadingComplete) return;
+                
+                // 🔄 重置期間不處理視差更新，避免覆蓋動畫
+                if (this.isResetting) return;
 
                 // 更新滑鼠位置插值
                 this.updateMousePosition();

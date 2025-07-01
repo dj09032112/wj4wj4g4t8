@@ -911,7 +911,7 @@
                 this.isInertiaActive = false; // 是否正在執行慣性緩衝
                 this.orientation = { x: 0, y: 0 };
                 // 🎛️ 螢幕方向自動轉換機制
-                this.currentOrientation = this.getScreenOrientation();
+                this.updateScreenOrientation(); // 第一次初始化時更新方向
                 this.initialOrientation = this.currentOrientation; // 儲存初始方向
                 this.baseX = null;           // 統一的X軸基準值（保留向後相容）
                 this.baseY = null;           // 統一的Y軸基準值（保留向後相容）
@@ -1022,7 +1022,7 @@
                        window.innerWidth <= 768;
             }
 
-            // 🎛️ 簡化螢幕方向偵測（實時更新）
+            // 🎛️ 實時更新螢幕方向（簡易快速判斷）
             updateScreenOrientation() {
                 const w = window.innerWidth;
                 const h = window.innerHeight;
@@ -1036,9 +1036,14 @@
                 return diff;
             }
 
-            // 🎛️ 簡化陀螺儀映射邏輯（α控制水平旋轉）
+            // 🎛️ 根據螢幕方向轉換陀螺儀數值（簡化版：α控制水平旋轉）
             transformGyroData(dAlpha, dBeta, dGamma) {
                 let x, y;
+                
+                // 陀螺儀軸向說明：
+                // dAlpha: 水平旋轉差值（左右轉身）→ 控制 X 軸視差
+                // dBeta: 前後俯仰差值 → 控制 Y 軸視差（直立模式）
+                // dGamma: 左右傾斜差值 → 控制 Y 軸視差（橫向模式）
                 
                 if (this.currentOrientation.startsWith('portrait')) {
                     // 直立：α→X, β→Y
@@ -1111,17 +1116,20 @@
                 this.lastPointerTime = Date.now();
             }
 
-            // 🎮 陀螺儀更新（新版：使用原始角度基準）
+            // 🎮 陀螺儀更新（修正版：實時方向偵測）
             gyroUpdate(event) {
                 if (this.currentControlMode !== 'gyro') return;
                 if (this.isResetting) return;   // 動畫期間完全忽略 gyro
+                
+                // 實時更新螢幕方向
+                this.updateScreenOrientation();
                 
                 // 獲取原始陀螺儀數值
                 const alpha = event.alpha || 0;
                 const beta = event.beta || 0;
                 const gamma = event.gamma || 0;
 
-                // 第一次進來時或方向變化後建立基準值
+                // 基準值為 null 或方向變化後重新建立基準值
                 if (this.baseAlpha === null) {
                     this.baseAlpha = alpha;
                     this.baseBeta = beta;
@@ -1353,9 +1361,6 @@
                 this.createLoadingParticles(); // 創建載入粒子效果
                 this.randomizeSpinnerRings(); // 設定隨機旋轉效果
                 
-                // 🎛️ 初始化螢幕方向偵測
-                this.updateScreenOrientation();
-                
                 // 🎭 設定層級引用
                 this.loadingLayer = this.loadingScene; // 載入層：Three.js 場景
                 this.uiLayer = document.getElementById('back-button'); // UI層：DOM 元素
@@ -1555,7 +1560,7 @@
                         this.smoothedDelta = { x: 0, y: 0 };
                         this.baseX = null;        // 保留向後相容
                         this.baseY = null;
-                        this.baseAlpha = null;    // 重設角度基準
+                        this.baseAlpha = null;    // 新的角度基準重設
                         this.baseBeta = null;
                         this.baseGamma = null;
                         this.isResetting = false;
@@ -1678,54 +1683,59 @@
                 
                 // 1. 螢幕方向變化監聽（所有裝置）
                 const handleOrientationChange = () => {
+                    const oldOrientation = this.currentOrientation;
                     this.updateScreenOrientation(); // 實時更新方向
-                    // 重設基準值，避免翻轉時跳動
-                    this.baseX = null;
-                    this.baseY = null;
-                    this.baseAlpha = null;
-                    this.baseBeta = null;
-                    this.baseGamma = null;
-                    this.smoothedDelta = { x: 0, y: 0 };
                     
-                    // 📱 修正：螢幕方向變化時強制重新計算容器大小
-                    // 延遲執行，確保瀏覽器完成方向變化
-                    setTimeout(() => {
-                        console.log('🔄 方向變化後重新計算容器大小');
-                        // 強制觸發resize事件處理邏輯
-                        this.camera.aspect = window.innerWidth / window.innerHeight;
-                        this.camera.updateProjectionMatrix();
+                    if (oldOrientation !== this.currentOrientation) {
+                        console.log(`🔄 螢幕方向變化: ${oldOrientation} → ${this.currentOrientation}`);
+                        // 重設基準值，避免翻轉時跳動
+                        this.baseX = null;
+                        this.baseY = null;
+                        this.baseAlpha = null;  // 重設新的角度基準
+                        this.baseBeta = null;
+                        this.baseGamma = null;
+                        this.smoothedDelta = { x: 0, y: 0 };
                         
-                        // 📱 高解析螢幕支援：重新設定像素比例和大小
-                        const maxRatio = 2;
-                        const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
-                        this.renderer.setPixelRatio(pixelRatio);
-                        this.renderer.setSize(window.innerWidth, window.innerHeight, false);
-                        
-                        // 📱 確保canvas元素在DOM中的顯示尺寸正確
-                        const canvas = document.getElementById('canvas');
-                        if (canvas) {
-                            canvas.style.width = window.innerWidth + 'px';
-                            canvas.style.height = window.innerHeight + 'px';
-                        }
-                        
-                        // 同時調整載入場景
-                        if (this.loadingCamera && this.loadingRenderer) {
-                            this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
-                            this.loadingCamera.updateProjectionMatrix();
-                            this.loadingRenderer.setPixelRatio(pixelRatio);
-                            this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                        // 📱 修正：螢幕方向變化時強制重新計算容器大小
+                        // 延遲執行，確保瀏覽器完成方向變化
+                        setTimeout(() => {
+                            console.log('🔄 方向變化後重新計算容器大小');
+                            // 強制觸發resize事件處理邏輯
+                            this.camera.aspect = window.innerWidth / window.innerHeight;
+                            this.camera.updateProjectionMatrix();
                             
-                            // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
-                            const loadingCanvas = document.getElementById('loading-canvas');
-                            if (loadingCanvas) {
-                                loadingCanvas.style.width = window.innerWidth + 'px';
-                                loadingCanvas.style.height = window.innerHeight + 'px';
+                            // 📱 高解析螢幕支援：重新設定像素比例和大小
+                            const maxRatio = 2;
+                            const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+                            this.renderer.setPixelRatio(pixelRatio);
+                            this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+                            
+                            // 📱 確保canvas元素在DOM中的顯示尺寸正確
+                            const canvas = document.getElementById('canvas');
+                            if (canvas) {
+                                canvas.style.width = window.innerWidth + 'px';
+                                canvas.style.height = window.innerHeight + 'px';
                             }
-                        }
-                        
-                        // 重新計算所有圖層尺寸
-                        this.updateAllLayerSizes();
-                    }, 100); // 延遲100ms確保方向變化完成
+                            
+                            // 同時調整載入場景
+                            if (this.loadingCamera && this.loadingRenderer) {
+                                this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                                this.loadingCamera.updateProjectionMatrix();
+                                this.loadingRenderer.setPixelRatio(pixelRatio);
+                                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                                
+                                // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
+                                const loadingCanvas = document.getElementById('loading-canvas');
+                                if (loadingCanvas) {
+                                    loadingCanvas.style.width = window.innerWidth + 'px';
+                                    loadingCanvas.style.height = window.innerHeight + 'px';
+                                }
+                            }
+                            
+                            // 重新計算所有圖層尺寸
+                            this.updateAllLayerSizes();
+                        }, 100); // 延遲100ms確保方向變化完成
+                    }
                 };
 
                 // 監聽方向變化事件
@@ -1811,7 +1821,7 @@
 
                 // 視窗大小調整
                 window.addEventListener('resize', () => {
-                    // 🎛️ 實時更新螢幕方向
+                    // 實時更新螢幕方向
                     this.updateScreenOrientation();
                     
                     this.camera.aspect = window.innerWidth / window.innerHeight;

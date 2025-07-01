@@ -984,7 +984,6 @@
                 
                 // 🔄 重置視角功能
                 this.isResetting = false;                  // 是否正在重置視角
-                this.parallaxFreeze = false;               // 是否凍結視差更新
                 this.lastRawX = 0;                         // 最新的原始X值
                 this.lastRawY = 0;                         // 最新的原始Y值
 
@@ -1588,9 +1587,9 @@
 
             // 🔄 重置視角功能
             resetView() {
-                // 1. 在 resetView() 一開始：
-                this.isResetting = true;
-                this.parallaxFreeze = true;         // 新旗標
+                // 1. 不要在 resetView() 設 parallaxFreeze = true；改為只凍結輸入：
+                this.isResetting = true;  // 保留
+                // 不設 this.parallaxFreeze
                 
                 // 取目前 smoothedDelta 當作 offset 起點
                 const startX = this.smoothedDelta.x;
@@ -1601,25 +1600,21 @@
                 const animate = (now) => {
                     const t = Math.min(1, (now - startTime) / duration);
                     const ease = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; // easeInOutQuad
-                    
-                    this.currentOffsetX = THREE.MathUtils.lerp(startX, 0, ease);
-                    this.currentOffsetY = THREE.MathUtils.lerp(startY, 0, ease);
-                    
+                    const offsetX = THREE.MathUtils.lerp(startX, 0, ease);
+                    const offsetY = THREE.MathUtils.lerp(startY, 0, ease);
+
+                    // 3. 在 resetView() 的動畫迴圈內直接呼叫 applyMainParallax()：
+                    // 將平滑後的 offset 立即套上主視差
+                    this.applyMainParallax(offsetX, offsetY);
+
                     if (t < 1) {
                         requestAnimationFrame(animate);
                     } else {
-                        // 3. 在 resetView() 的動畫結束分支：
-                        this.scene.position.set(0, 0, 0);
+                        // 歸零並建立新基準
                         this.currentOffsetX = 0;
                         this.currentOffsetY = 0;
-                        // 為了確保差值回到 0，將 smoothedDelta 也歸零
-                        this.smoothedDelta.x = 0;
-                        this.smoothedDelta.y = 0;
-                        // 重新抓基準值
                         this.baseX = this.lastRawX;
                         this.baseY = this.lastRawY;
-                        // 解除凍結
-                        this.parallaxFreeze = false;
                         this.isResetting = false;
                         console.log('🔄 視角重置完成');
                     }
@@ -2218,9 +2213,6 @@
             updateMousePosition() {
                 if (this.isMobile) return; // 行動裝置不需要滑鼠插值
                 
-                // 重置期間不更新滑鼠位置
-                if (this.parallaxFreeze) return;
-                
                 if (this.mouseInsidePage) {
                     // 滑鼠在頁面內的正常跟隨邏輯
                     const deltaX = this.targetMouse.x - this.currentMouse.x;
@@ -2282,8 +2274,8 @@
             updateParallax() {
                 if (!this.loadingComplete) return;
                 
-                // 2. 在 updateParallax() 開頭加：
-                if (this.parallaxFreeze) return;    // 重置期間不再改寫 scene.position
+                // 重置期間不更新視差，讓動畫迴圈處理
+                if (this.isResetting) return;
 
                 // 更新滑鼠位置插值
                 this.updateMousePosition();
@@ -2376,8 +2368,6 @@
 
             // 🔧 新增：獨立的主視差應用方法
             applyMainParallax(inputX, inputY) {
-                // 重置期間不處理主視差效果
-                if (this.parallaxFreeze) return;
                 
                 this.layers.forEach((layer) => {
                     const userData = layer.userData;
@@ -3127,9 +3117,6 @@
             updateInteractiveDotsParallax(inputX, inputY) {
                 if (!this.interactiveDots.length) return;
                 
-                // 重置期間不處理點點視差效果
-                if (this.parallaxFreeze) return;
-                
                 this.interactiveDots.forEach(dotData => {
                     const { mesh, basePosition, config } = dotData;
                     
@@ -3578,8 +3565,6 @@
 
             // 🕹️ 局部視角控制方法
             updateDetailViewControl(inputX, inputY) {
-                // 重置期間不處理局部視角控制
-                if (this.parallaxFreeze) return;
                 
                 // 更新局部視角的滑鼠位置
                 this.detailViewMouse.x = inputX;

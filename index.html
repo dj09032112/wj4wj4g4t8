@@ -786,6 +786,8 @@
                 this.initialOrientation = this.currentOrientation; // 儲存初始方向
                 this.baseX = null;           // 統一的X軸基準值
                 this.baseY = null;           // 統一的Y軸基準值
+                this.gyroSamples = null;     // 陀螺儀基準樣本收集
+                this.gyroSampleCount = 0;    // 樣本計數
                 this.smoothedDelta = { x: 0, y: 0 }; // 平滑後的差值
                 this.SMOOTH_ALPHA = 0.15;    // 低通濾波係數
                 
@@ -1018,15 +1020,37 @@
                 // 根據螢幕方向轉換為統一的X/Y軸
                 const { x, y } = this.transformGyroData(alpha, beta, gamma);
 
-                // 第一次進來時建立基準值
+                // 📱 延遲設定基準值，確保陀螺儀數據穩定
                 if (this.baseX === null) {
-                    this.baseX = x;
-                    this.baseY = y;
-                    console.log('🎛️ 建立統一基準值:', {
-                        orientation: this.currentOrientation,
-                        baseX: this.baseX.toFixed(2),
-                        baseY: this.baseY.toFixed(2)
-                    });
+                    // 收集多個樣本以確保數據穩定
+                    if (!this.gyroSamples) {
+                        this.gyroSamples = [];
+                        this.gyroSampleCount = 0;
+                        console.log('📱 開始收集陀螺儀基準樣本...');
+                    }
+                    
+                    this.gyroSamples.push({ x, y });
+                    this.gyroSampleCount++;
+                    
+                    // 收集10個樣本後計算平均值作為基準
+                    if (this.gyroSampleCount >= 10) {
+                        const avgX = this.gyroSamples.reduce((sum, sample) => sum + sample.x, 0) / this.gyroSamples.length;
+                        const avgY = this.gyroSamples.reduce((sum, sample) => sum + sample.y, 0) / this.gyroSamples.length;
+                        
+                        this.baseX = avgX;
+                        this.baseY = avgY;
+                        
+                        // 清理樣本數據
+                        this.gyroSamples = null;
+                        this.gyroSampleCount = 0;
+                        
+                        console.log('🎛️ 建立穩定基準值:', {
+                            orientation: this.currentOrientation,
+                            baseX: this.baseX.toFixed(2),
+                            baseY: this.baseY.toFixed(2),
+                            samples: 10
+                        });
+                    }
                     return;
                 }
 
@@ -1488,9 +1512,11 @@
                     if (newOrientation !== this.currentOrientation) {
                         console.log(`🔄 螢幕方向變化: ${this.currentOrientation} → ${newOrientation}`);
                         this.currentOrientation = newOrientation;
-                        // 重設基準值，避免翻轉時跳動
+                        // 重設基準值和樣本收集，避免翻轉時跳動
                         this.baseX = null;
                         this.baseY = null;
+                        this.gyroSamples = null;
+                        this.gyroSampleCount = 0;
                         this.smoothedDelta = { x: 0, y: 0 };
                     }
                 };

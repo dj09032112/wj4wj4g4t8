@@ -1588,22 +1588,38 @@
                 // 暫停 gyro／pointer 輸出
                 this.isResetting = true;
                 
-                // 取目前 smoothedDelta 當作 offset 起點
-                const startX = this.smoothedDelta.x;
-                const startY = this.smoothedDelta.y;
+                // 記錄當前場景位置作為起始點
+                const startSceneX = this.scene.position.x;
+                const startSceneY = this.scene.position.y;
+                const startOffsetX = this.currentOffsetX;
+                const startOffsetY = this.currentOffsetY;
+                
                 const duration = 400; // ms
                 const startTime = performance.now();
+                
+                console.log('🔄 開始重置視角動畫');
                 
                 const animate = (now) => {
                     const t = Math.min(1, (now - startTime) / duration);
                     const ease = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; // easeInOutQuad
                     
-                    this.currentOffsetX = THREE.MathUtils.lerp(startX, 0, ease);
-                    this.currentOffsetY = THREE.MathUtils.lerp(startY, 0, ease);
+                    // 平滑過渡場景位置到中心
+                    this.scene.position.x = THREE.MathUtils.lerp(startSceneX, 0, ease);
+                    this.scene.position.y = THREE.MathUtils.lerp(startSceneY, 0, ease);
+                    
+                    // 平滑過渡偏移值到0
+                    this.currentOffsetX = THREE.MathUtils.lerp(startOffsetX, 0, ease);
+                    this.currentOffsetY = THREE.MathUtils.lerp(startOffsetY, 0, ease);
                     
                     if (t < 1) {
                         requestAnimationFrame(animate);
                     } else {
+                        // 確保最終位置正確
+                        this.scene.position.x = 0;
+                        this.scene.position.y = 0;
+                        this.currentOffsetX = 0;
+                        this.currentOffsetY = 0;
+                        
                         // 將當前原始 x/y 設為新 base
                         this.baseX = this.lastRawX;
                         this.baseY = this.lastRawY;

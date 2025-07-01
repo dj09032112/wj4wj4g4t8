@@ -15,11 +15,15 @@
             background: linear-gradient(135deg, #000000, #1a1a1a);
             overflow: hidden;
             font-family: Arial, sans-serif;
+            /* 修復行動裝置底部空白問題 */
+            height: 100vh;
+            height: 100dvh; /* 動態視窗高度，支援的瀏覽器會使用這個 */
         }
 
         #container {
             width: 100vw;
             height: 100vh;
+            height: 100dvh; /* 動態視窗高度，支援的瀏覽器會使用這個 */
             position: relative;
         }
 
@@ -89,6 +93,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
+            height: 100dvh; /* 動態視窗高度，支援的瀏覽器會使用這個 */
             background: black;
             z-index: 2000; /* 載入層：中間層 */
             opacity: 0;
@@ -466,6 +471,22 @@
                 margin: 0 auto 20px;
             }
         }
+
+        /* 行動裝置視窗高度修復 */
+        @supports not (height: 100dvh) {
+            /* 對於不支援 100dvh 的瀏覽器，使用 JavaScript 動態設定 */
+            body.mobile-height-fix {
+                height: var(--vh, 100vh);
+            }
+            
+            #container.mobile-height-fix {
+                height: var(--vh, 100vh);
+            }
+            
+            #loading-cover.mobile-height-fix {
+                height: var(--vh, 100vh);
+            }
+        }
     </style>
 </head>
 <body>
@@ -522,6 +543,37 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 🔧 行動裝置視窗高度修復
+        function fixMobileViewportHeight() {
+            // 計算實際的視窗高度（排除瀏覽器UI）
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+            
+            // 檢查是否為行動裝置且不支援 100dvh
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const supportsDvh = CSS.supports('height', '100dvh');
+            
+            if (isMobile && !supportsDvh) {
+                document.body.classList.add('mobile-height-fix');
+                document.getElementById('container').classList.add('mobile-height-fix');
+                const loadingCover = document.getElementById('loading-cover');
+                if (loadingCover) {
+                    loadingCover.classList.add('mobile-height-fix');
+                }
+            }
+        }
+
+        // 初始設定
+        fixMobileViewportHeight();
+        
+        // 監聽視窗大小變化（包括方向改變、鍵盤彈出等）
+        window.addEventListener('resize', fixMobileViewportHeight);
+        window.addEventListener('orientationchange', () => {
+            // 方向改變後稍微延遲執行，確保瀏覽器完成重新佈局
+            setTimeout(fixMobileViewportHeight, 100);
+        });
+    </script>
     <script>
         class ParallaxViewer {
             constructor() {

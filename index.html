@@ -27,32 +27,52 @@
         /* 層級 3: UI 層 (z-index: 3000+) */
         #back-button {
             position: fixed;
-            top: 20px;
-            left: 20px;
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
+            top: 25px;
+            left: 25px;
+            width: 44px;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
             cursor: pointer;
             z-index: 3000; /* UI 層：最上層 */
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(12px);
+            box-shadow: 
+                0 4px 16px rgba(0, 0, 0, 0.1),
+                0 1px 4px rgba(0, 0, 0, 0.05);
         }
 
         #back-button:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.5);
-            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(220, 156, 59, 0.4);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 
+                0 8px 24px rgba(0, 0, 0, 0.15),
+                0 2px 8px rgba(0, 0, 0, 0.1),
+                0 0 0 1px rgba(220, 156, 59, 0.1);
+        }
+
+        #back-button:active {
+            transform: translateY(0) scale(0.98);
+            transition: all 0.1s ease;
         }
 
         #back-button svg {
-            width: 24px;
-            height: 24px;
-            fill: white;
+            width: 20px;
+            height: 20px;
+            stroke: #f4e3d4;
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 0 8px rgba(244, 227, 212, 0.3));
+        }
+
+        #back-button:hover svg {
+            stroke: #dc9c3b;
+            filter: drop-shadow(0 0 12px rgba(220, 156, 59, 0.6));
+            transform: translateX(-1px);
         }
 
         /* 層級 2: 載入層 (z-index: 2000+) */
@@ -369,10 +389,16 @@
 
         @media (max-width: 768px) {
             #back-button {
-                width: 45px;
-                height: 45px;
-                top: 15px;
-                left: 15px;
+                width: 40px;
+                height: 40px;
+                top: 20px;
+                left: 20px;
+                border-radius: 10px;
+            }
+            
+            #back-button svg {
+                width: 18px;
+                height: 18px;
             }
             
             .loading-container {
@@ -420,8 +446,8 @@
         </div>
         
         <button id="back-button" onclick="handleBackButton()">
-            <svg viewBox="0 0 24 24">
-                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.42-1.41L7.83 13H20v-2z"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
         </button>
 
@@ -1675,18 +1701,9 @@
                 // 更新滑鼠位置插值
                 this.updateMousePosition();
 
-                // 🎮 根據控制模式選擇輸入源
-                let inputX, inputY;
-                
-                if (this.currentControlMode === 'pointer' && !this.isMobile) {
-                    // 桌面版滑鼠控制：使用插值後的滑鼠位置
-                    inputX = this.mouse.x * this.parallaxTransitionProgress;
-                    inputY = this.mouse.y * this.parallaxTransitionProgress;
-                } else {
-                    // 陀螺儀控制或行動版：使用統一的偏移值
-                    inputX = this.currentOffsetX * this.parallaxTransitionProgress;
-                    inputY = this.currentOffsetY * this.parallaxTransitionProgress;
-                }
+                // 🎮 統一輸入源：使用currentOffsetX/Y，確保行動裝置和滑鼠的邏輯一致
+                const inputX = this.currentOffsetX * this.parallaxTransitionProgress;
+                const inputY = this.currentOffsetY * this.parallaxTransitionProgress;
                 
                 // 🔧 修正：在過渡期間和不同視角下都要處理滑鼠輸入
                 if (this.viewState === 'detail' && !this.isTransitioning) {
@@ -1864,17 +1881,9 @@
                         : 1 - Math.pow(-2 * progress + 2, 3) / 2;
                     
                     // 🔧 過渡期間的滑鼠控制：同時應用主視差和局部視角控制
-                    let rawInputX, rawInputY;
-                    
-                    if (this.currentControlMode === 'pointer' && !this.isMobile) {
-                        // 桌面版滑鼠控制：使用插值後的滑鼠位置
-                        rawInputX = this.mouse.x;
-                        rawInputY = this.mouse.y;
-                    } else {
-                        // 陀螺儀控制或行動版：使用統一的偏移值
-                        rawInputX = this.currentOffsetX;
-                        rawInputY = this.currentOffsetY;
-                    }
+                    // 統一使用currentOffsetX/Y，確保行動裝置和滑鼠的邏輯一致
+                    const rawInputX = this.currentOffsetX;
+                    const rawInputY = this.currentOffsetY;
                     
                     // 主視差權重：從1過渡到0
                     const mainParallaxWeight = 1.0 - easeProgress;
@@ -2017,8 +2026,9 @@
                         : 1 - Math.pow(-2 * progress + 2, 3) / 2;
                     
                     // 🔧 過渡期間的滑鼠控制：同時應用局部視角和主視差控制
-                    const rawInputX = this.isMobile ? this.orientation.x : this.mouse.x;
-                    const rawInputY = this.isMobile ? this.orientation.y : this.mouse.y;
+                    // 統一使用currentOffsetX/Y，確保行動裝置和滑鼠的邏輯一致
+                    const rawInputX = this.currentOffsetX;
+                    const rawInputY = this.currentOffsetY;
                     
                     // 局部視角權重：從1過渡到0
                     const detailViewWeight = 1.0 - easeProgress;

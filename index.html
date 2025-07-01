@@ -1821,10 +1821,7 @@
                     });
                 }
 
-                // 4. 陀螺儀事件（行動裝置）
-                if (window.DeviceOrientationEvent) {
-                    window.addEventListener('deviceorientation', this.gyroUpdate.bind(this));
-                }
+                // 4. 陀螺儀事件（行動裝置）- 移除重複註冊，統一在 startGyroControl() 中處理
 
                 // 5. 陀螺儀授權按鈕事件
                 const enableGyroBtn = document.getElementById('enable-gyro-btn');

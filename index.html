@@ -722,8 +722,8 @@
             #reset-view-button {
                 width: 40px;
                 height: 40px;
-                bottom: 20px;
-                left: 20px;
+                top: 20px;
+                right: 80px; /* 在全螢幕按鈕左邊，與桌面版保持一致 */
             }
             
             #reset-view-button svg {
@@ -911,15 +911,10 @@
                 this.isInertiaActive = false; // 是否正在執行慣性緩衝
                 this.orientation = { x: 0, y: 0 };
                 // 🎛️ 螢幕方向自動轉換機制
-                this.updateScreenOrientation(); // 第一次初始化時更新方向
+                this.currentOrientation = this.getScreenOrientation();
                 this.initialOrientation = this.currentOrientation; // 儲存初始方向
-                this.baseX = null;           // 統一的X軸基準值（保留向後相容）
-                this.baseY = null;           // 統一的Y軸基準值（保留向後相容）
-                
-                // 新的陀螺儀基準值（原始角度）
-                this.baseAlpha = null;       // 水平旋轉基準值
-                this.baseBeta = null;        // 前後俯仰基準值  
-                this.baseGamma = null;       // 左右傾斜基準值
+                this.baseX = null;           // 統一的X軸基準值
+                this.baseY = null;           // 統一的Y軸基準值
                 this.smoothedDelta = { x: 0, y: 0 }; // 平滑後的差值
                 this.SMOOTH_ALPHA = 0.15;    // 低通濾波係數
                 
@@ -945,8 +940,8 @@
                 this.DEPTH_SENSITIVITY = 0.5;  // 深度圖敏感度：控制深度差異的視差幅度 (建議範圍: 0.1-0.5)
                 
                 // 📱 行動裝置陀螺儀控制
-                this.GYRO_SENSITIVITY = 5.0;    // 陀螺儀靈敏度：控制裝置旋轉的敏感程度 (建議範圍: 0.5-2.0)
-                // 移除 GYRO_INVERT_X，改用α控制水平旋轉，若需反向可在最終 deltaX 取負值
+                this.GYRO_SENSITIVITY = 5.0;    // 陀螺儀靈敏度：控制裝置傾斜的敏感程度 (建議範圍: 0.5-2.0)
+                this.GYRO_INVERT_X = true;       // 是否反轉X軸 (左右傾斜)：true=裝置左傾時畫面右移
                 
                 // 🖼️ 統一圖片大小控制
                 this.IMAGE_SCALE = 1.02;        // 圖片縮放比例：控制封面圖和主圖的大小 (建議範圍: 0.5-1.5)
@@ -981,13 +976,13 @@
                  * 
                  * GYRO_SENSITIVITY：
                  * - 控制行動裝置陀螺儀的敏感程度
-                 * - 數值越大，裝置旋轉時視差效果越明顯
-                 * - 新版使用α(水平旋轉)控制X軸，β/γ(俯仰)控制Y軸
+                 * - 數值越大，裝置傾斜時視差效果越明顯
+                 * - 僅影響行動裝置的傾斜控制
                  * 
-                 * 新版陀螺儀控制說明：
-                 * - 水平旋轉(α)：左右轉身 → X軸視差
-                 * - 前後俯仰(β)：直立模式 → Y軸視差
-                 * - 左右傾斜(γ)：橫向模式 → Y軸視差
+                 * GYRO_INVERT_X：
+                 * - 控制是否反轉左右傾斜的方向
+                 * - true：裝置左傾時畫面向右移動（更直觀）
+                 * - false：裝置左傾時畫面向左移動
                  * 
                  * 🎯 調整建議：
                  * - 想要更敏感的滑鼠控制 → 增加 PARALLAX_INTENSITY
@@ -1022,36 +1017,67 @@
                        window.innerWidth <= 768;
             }
 
-            // 🎛️ 使用官方 Screen Orientation API 更新螢幕方向
-            updateScreenOrientation() {
-                const angle = screen.orientation.angle;
-                this.currentOrientation = (angle === 0 || angle === 180) ? 'portrait' : 'landscape';
+            // 🎛️ 獲取當前螢幕方向
+            getScreenOrientation() {
+                // 優先使用 Screen Orientation API
+                if (screen.orientation && screen.orientation.type) {
+                    return screen.orientation.type.split('-')[0] + '-' + screen.orientation.type.split('-')[1];
+                }
+                
+                // 回退到角度判斷
+                const angle = screen.orientation ? screen.orientation.angle : window.orientation;
+                switch (angle) {
+                    case 0: return 'portrait-primary';
+                    case 90: return 'landscape-primary';
+                    case -90:
+                    case 270: return 'landscape-secondary';
+                    case 180: return 'portrait-secondary';
+                    default: return 'portrait-primary';
+                }
             }
 
-            // 🎛️ 計算最短角度差（避免0↔360跳值）
-            shortestAngleDiff(a, b) {
-                let diff = (a - b + 540) % 360 - 180; // 取最短路徑
-                return diff;
-            }
-
-            // 🎛️ 根據螢幕方向轉換陀螺儀數值（簡化版：α控制水平旋轉）
-            transformGyroData(dAlpha, dBeta, dGamma) {
+            // 🎛️ 根據螢幕方向轉換陀螺儀數值
+            transformGyroData(alpha, beta, gamma) {
                 let x, y;
                 
                 // 陀螺儀軸向說明：
-                // dAlpha: 水平旋轉差值（左右轉身）→ 控制 X 軸視差
-                // dBeta: 前後俯仰差值 → 控制 Y 軸視差（直立模式）
-                // dGamma: 左右傾斜差值 → 控制 Y 軸視差（橫向模式）
+                // alpha: 水平旋轉（0-360度，通常不用於視差）
+                // beta: 前後傾斜（-180到180度，前傾為正，後傾為負）
+                // gamma: 左右傾斜（-90到90度，右傾為正，左傾為負）
                 
-                if (this.currentOrientation === 'portrait') {
-                    // 直立：α→X, β→Y
-                    x = dAlpha;
-                    y = dBeta;
-                } else {
-                    // 橫向：α→X, γ→Y（取反轉避免上下相反）
-                    x = dAlpha;
-                    y = -dGamma;
+                switch (this.currentOrientation) {
+                    case 'portrait-primary':
+                        // 直立正向：gamma控制左右，beta控制上下
+                        x = gamma;  // 左右傾 → X軸（左右移動）
+                        y = beta;   // 前後傾 → Y軸（上下移動）
+                        break;
+                        
+                    case 'portrait-secondary':
+                        // 直立倒置：需要反轉軸向
+                        x = -gamma; // 左右傾反轉 → X軸
+                        y = -beta;  // 前後傾反轉 → Y軸
+                        break;
+                        
+                    case 'landscape-primary':
+                        // 橫向正向：beta控制左右，gamma控制上下（但方向需要調整）
+                        x = beta;   // 前後傾 → X軸（左右移動）
+                        y = -gamma; // 左右傾反轉 → Y軸（上下移動）
+                        break;
+                        
+                    case 'landscape-secondary':
+                        // 橫向倒置：需要反轉軸向
+                        x = -beta;  // 前後傾反轉 → X軸
+                        y = gamma;  // 左右傾 → Y軸
+                        break;
+                        
+                    default:
+                        // 預設使用直立正向的映射
+                        x = gamma;
+                        y = beta;
                 }
+                
+                // 🔧 移除初始橫向補償，因為已經在switch中處理了
+                // 這個補償會導致重複的軸向轉換
                 
                 return { x, y };
             }
@@ -1114,9 +1140,11 @@
                 this.lastPointerTime = Date.now();
             }
 
-            // 🎮 陀螺儀更新（修正版：只在基準為 null 時建立基準）
+            // 🎮 陀螺儀更新
             gyroUpdate(event) {
                 if (this.currentControlMode !== 'gyro') return;
+                
+                // 4. gyroUpdate()：
                 if (this.isResetting) return;   // 動畫期間完全忽略 gyro
                 
                 // 獲取原始陀螺儀數值
@@ -1124,38 +1152,37 @@
                 const beta = event.beta || 0;
                 const gamma = event.gamma || 0;
 
-                // 只在基準值為 null 時建立基準值
-                if (this.baseAlpha === null) {
-                    this.baseAlpha = alpha;
-                    this.baseBeta = beta;
-                    this.baseGamma = gamma;
-                    console.log('🎛️ 建立原始角度基準值:', {
-                        orientation: this.currentOrientation,
-                        baseAlpha: this.baseAlpha.toFixed(2),
-                        baseBeta: this.baseBeta.toFixed(2),
-                        baseGamma: this.baseGamma.toFixed(2)
-                    });
-                    return; // 建基準不輸出
-                }
-
-                // 計算角度差值（使用最短路徑避免跳值）
-                const dAlpha = this.shortestAngleDiff(alpha, this.baseAlpha);
-                const dBeta = beta - this.baseBeta;
-                const dGamma = gamma - this.baseGamma;
-
-                // 可選保險：若直立狀態部分裝置 α 幾乎不變，自動切換用 γ 作水平旋轉備援
-                let finalDAlpha = dAlpha;
-                if (this.currentOrientation === 'portrait' && Math.abs(dAlpha) < 1 && Math.abs(dGamma) > 1) {
-                    finalDAlpha = dGamma; // 使用 γ 作為水平旋轉備援
-                    console.log('🔄 檢測到 α 無效，切換使用 γ 作為水平旋轉');
-                }
-
                 // 根據螢幕方向轉換為統一的X/Y軸
-                const { x, y } = this.transformGyroData(finalDAlpha, dBeta, dGamma);
+                const { x, y } = this.transformGyroData(alpha, beta, gamma);
 
-                // 設定靈敏度與 clamp
-                let deltaX = THREE.MathUtils.clamp(x / 45 * this.GYRO_SENSITIVITY, -1, 1);
-                let deltaY = THREE.MathUtils.clamp(y / 45 * this.GYRO_SENSITIVITY, -1, 1);
+                // 第一次進來時建立基準值
+                if (this.baseX === null) {
+                    this.baseX = x;
+                    this.baseY = y;
+                    console.log('🎛️ 建立統一基準值:', {
+                        orientation: this.currentOrientation,
+                        baseX: this.baseX.toFixed(2),
+                        baseY: this.baseY.toFixed(2)
+                    });
+                    return;
+                }
+
+                // 計算差值
+                let deltaX = (x - this.baseX) / 45;
+                let deltaY = (y - this.baseY) / 45;
+
+                // 應用靈敏度參數
+                deltaX *= this.GYRO_SENSITIVITY;
+                deltaY *= this.GYRO_SENSITIVITY;
+
+                // 限制範圍
+                deltaX = THREE.MathUtils.clamp(deltaX, -1, 1);
+                deltaY = THREE.MathUtils.clamp(deltaY, -1, 1);
+
+                // 應用左右反轉設定
+                if (this.GYRO_INVERT_X) {
+                    deltaX = -deltaX;
+                }
 
                 // 低通濾波平滑處理
                 this.smoothedDelta.x = this.smoothedDelta.x * (1 - this.SMOOTH_ALPHA) + deltaX * this.SMOOTH_ALPHA;
@@ -1169,16 +1196,18 @@
                 if (!this.debugCounter) this.debugCounter = 0;
                 this.debugCounter++;
                 if (this.debugCounter % 100 === 0) {
-                    console.log('🎛️ 陀螺儀調試 (修正版):', {
+                    console.log('🎛️ 陀螺儀調試:', {
                         orientation: this.currentOrientation,
                         raw: { alpha: alpha.toFixed(1), beta: beta.toFixed(1), gamma: gamma.toFixed(1) },
-                        diff: { dAlpha: dAlpha.toFixed(1), dBeta: dBeta.toFixed(1), dGamma: dGamma.toFixed(1) },
-                        finalDAlpha: finalDAlpha.toFixed(1),
                         transformed: { x: x.toFixed(1), y: y.toFixed(1) },
                         delta: { deltaX: deltaX.toFixed(3), deltaY: deltaY.toFixed(3) },
                         smoothed: { x: this.smoothedDelta.x.toFixed(3), y: this.smoothedDelta.y.toFixed(3) }
                     });
                 }
+                
+                // 🔄 儲存最新的原始X/Y值
+                this.lastRawX = x;
+                this.lastRawY = y;
             }
 
             // 🎮 滑鼠更新
@@ -1221,8 +1250,8 @@
                 // 全螢幕按鈕在所有裝置都顯示
                 document.getElementById('fullscreen-button').style.display = 'flex';
                 
-                // 重置視角按鈕只在行動裝置且橫向時顯示
-                if (isMobile && isLandscape) {
+                // 重置視角按鈕在行動裝置上顯示（直式和橫向都顯示）
+                if (isMobile) {
                     document.getElementById('reset-view-button').style.display = 'flex';
                 } else {
                     document.getElementById('reset-view-button').style.display = 'none';
@@ -1561,11 +1590,8 @@
                         this.currentOffsetX = 0;
                         this.currentOffsetY = 0;
                         this.smoothedDelta = { x: 0, y: 0 };
-                        this.baseX = null;        // 保留向後相容
+                        this.baseX = null;        // 讓下一筆 gyro 決定新基準
                         this.baseY = null;
-                        this.baseAlpha = null;    // 新的角度基準重設
-                        this.baseBeta = null;
-                        this.baseGamma = null;
                         this.isResetting = false;
                         console.log('🔄 視角重置完成');
                     }
@@ -1684,26 +1710,57 @@
             setupEventListeners() {
                 // 🎮 混合控制系統事件監聽器
                 
-                // 1. 螢幕方向變化監聽（使用官方 API）
-                let orientationChangeTimer = null;
+                // 1. 螢幕方向變化監聽（所有裝置）
                 const handleOrientationChange = () => {
-                    // 等 150ms，確定瀏覽器 viewport 穩定再抓基準
-                    clearTimeout(orientationChangeTimer);
-                    orientationChangeTimer = setTimeout(() => {
-                        const oldOrientation = this.currentOrientation;
-                        this.updateScreenOrientation(); // 使用官方 API 更新方向
+                    const newOrientation = this.getScreenOrientation();
+                    if (newOrientation !== this.currentOrientation) {
+                        console.log(`🔄 螢幕方向變化: ${this.currentOrientation} → ${newOrientation}`);
+                        this.currentOrientation = newOrientation;
+                        // 重設基準值，避免翻轉時跳動
+                        this.baseX = null;
+                        this.baseY = null;
+                        this.smoothedDelta = { x: 0, y: 0 };
                         
-                        if (oldOrientation !== this.currentOrientation) {
-                            console.log(`🔄 螢幕方向變化: ${oldOrientation} → ${this.currentOrientation}`);
-                            // 重設基準值，讓下一筆裝置事件重抓
-                            this.baseX = null;
-                            this.baseY = null;
-                            this.baseAlpha = null;
-                            this.baseBeta = null;
-                            this.baseGamma = null;
-                            this.smoothedDelta = { x: 0, y: 0 };
-                        }
-                    }, 150);
+                        // 📱 修正：螢幕方向變化時強制重新計算容器大小
+                        // 延遲執行，確保瀏覽器完成方向變化
+                        setTimeout(() => {
+                            console.log('🔄 方向變化後重新計算容器大小');
+                            // 強制觸發resize事件處理邏輯
+                            this.camera.aspect = window.innerWidth / window.innerHeight;
+                            this.camera.updateProjectionMatrix();
+                            
+                            // 📱 高解析螢幕支援：重新設定像素比例和大小
+                            const maxRatio = 2;
+                            const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+                            this.renderer.setPixelRatio(pixelRatio);
+                            this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+                            
+                            // 📱 確保canvas元素在DOM中的顯示尺寸正確
+                            const canvas = document.getElementById('canvas');
+                            if (canvas) {
+                                canvas.style.width = window.innerWidth + 'px';
+                                canvas.style.height = window.innerHeight + 'px';
+                            }
+                            
+                            // 同時調整載入場景
+                            if (this.loadingCamera && this.loadingRenderer) {
+                                this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                                this.loadingCamera.updateProjectionMatrix();
+                                this.loadingRenderer.setPixelRatio(pixelRatio);
+                                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                                
+                                // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
+                                const loadingCanvas = document.getElementById('loading-canvas');
+                                if (loadingCanvas) {
+                                    loadingCanvas.style.width = window.innerWidth + 'px';
+                                    loadingCanvas.style.height = window.innerHeight + 'px';
+                                }
+                            }
+                            
+                            // 重新計算所有圖層尺寸
+                            this.updateAllLayerSizes();
+                        }, 100); // 延遲100ms確保方向變化完成
+                    }
                 };
 
                 // 監聽方向變化事件
@@ -3675,13 +3732,13 @@
                 // 全螢幕按鈕在所有裝置都顯示
                 fullscreenButton.style.display = 'flex';
                 
-                // 重置視角按鈕只在行動裝置且橫向時顯示
-                if (isMobile && isLandscape) {
+                // 重置視角按鈕在行動裝置上顯示（直式和橫向都顯示）
+                if (isMobile) {
                     resetViewButton.style.display = 'flex';
-                    console.log('📱 行動裝置橫向：顯示重置視角按鈕');
+                    console.log('📱 行動裝置：顯示重置視角按鈕');
                 } else {
                     resetViewButton.style.display = 'none';
-                    console.log('🖥️ 桌面裝置或直向：隱藏重置視角按鈕');
+                    console.log('🖥️ 桌面裝置：隱藏重置視角按鈕');
                 }
             }
             

@@ -93,7 +93,7 @@
             border: 1.5px solid rgba(255, 255, 255, 0.2);
             border-radius: 50%;
             cursor: pointer;
-            z-index: 3000;
+            z-index: 3000; /* UI 層：最上層 */
             display: none; /* 預設隱藏 */
             align-items: center;
             justify-content: center;
@@ -452,7 +452,7 @@
             z-index: 1000; /* 內容層：最下層 */
         }
 
-        /* 觸控裝置：完全禁用hover效果 */
+        /* 觸控裝置：完全禁用hover效果 - 使用多種檢測方法確保兼容性 */
         @media (hover: none) and (pointer: coarse) {
             /* 觸控裝置：調整過渡動畫時間，讓點擊效果更明顯 */
             #back-button, #fullscreen-button {
@@ -512,18 +512,62 @@
                 height: 18px;
             }
             
-            /* 行動裝置：顯示全螢幕按鈕 */
+            /* 行動裝置：顯示全螢幕按鈕，與返回按鈕完全一致 */
             #fullscreen-button {
                 display: flex;
                 width: 40px;
                 height: 40px;
                 top: 20px;
                 right: 20px;
+                border-radius: 50%;
             }
             
             #fullscreen-button svg {
                 width: 18px;
                 height: 18px;
+            }
+            
+            /* 行動裝置：觸控優化 - 確保在所有手機上都能正常工作 */
+            #back-button, #fullscreen-button {
+                transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+            }
+            
+            #back-button svg, #fullscreen-button svg {
+                transition: transform 0.15s ease, filter 0.2s ease;
+            }
+            
+            #back-button:hover, #fullscreen-button:hover {
+                background: rgba(255, 255, 255, 0.08);
+                border-color: rgba(255, 255, 255, 0.2);
+                transform: none;
+                box-shadow: 
+                    0 4px 16px rgba(0, 0, 0, 0.1),
+                    0 1px 4px rgba(0, 0, 0, 0.05);
+            }
+            
+            #back-button:hover svg, #fullscreen-button:hover svg {
+                stroke: #f4e3d4;
+                filter: drop-shadow(0 0 8px rgba(244, 227, 212, 0.3));
+                transform: none;
+            }
+            
+            /* 行動裝置：加強active狀態的視覺回饋，更明顯的效果 */
+            #back-button:active, #fullscreen-button:active {
+                background: rgba(255, 255, 255, 0.35);
+                border-color: rgba(244, 227, 212, 0.7);
+                transform: translateY(1px) scale(0.85);
+                box-shadow: 
+                    0 1px 4px rgba(0, 0, 0, 0.3),
+                    0 0 0 3px rgba(244, 227, 212, 0.3),
+                    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+                transition: all 0.1s ease;
+            }
+            
+            #back-button:active svg, #fullscreen-button:active svg {
+                stroke: #f4e3d4;
+                filter: drop-shadow(0 0 20px rgba(244, 227, 212, 1.0));
+                transform: scale(0.85);
+                transition: all 0.1s ease;
             }
         }
 

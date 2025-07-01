@@ -239,77 +239,145 @@
             z-index: 2002; /* 載入層：錯誤訊息 */
         }
 
-        /* 🎮 陀螺儀授權按鈕樣式 */
+        /* 🎮 陀螺儀授權按鈕樣式 - 與網頁風格匹配 */
         .gyro-permission {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            backdrop-filter: blur(10px);
+            bottom: 30px;
+            right: 30px;
+            z-index: 3001; /* 在載入層之上，但在返回按鈕之下 */
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+            pointer-events: none;
+        }
+
+        .gyro-permission.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
         }
 
         .gyro-permission-content {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 40px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(220, 156, 59, 0.3);
+            border-radius: 15px;
+            padding: 20px;
             text-align: center;
-            max-width: 400px;
-            margin: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(20px);
+            max-width: 280px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gyro-permission-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #dc9c3b, #d1936b, #f4e3d4);
+            animation: titleGlow 2s ease-in-out infinite alternate;
         }
 
         .gyro-permission-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
+            font-size: 32px;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 0 8px rgba(220, 156, 59, 0.6));
         }
 
         .gyro-permission-title {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bold;
-            color: #333;
-            margin-bottom: 15px;
+            color: #f4e3d4;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(244, 227, 212, 0.3);
         }
 
         .gyro-permission-desc {
-            font-size: 16px;
-            color: #666;
-            line-height: 1.5;
-            margin-bottom: 30px;
+            font-size: 14px;
+            color: #d1936b;
+            line-height: 1.4;
+            margin-bottom: 20px;
+        }
+
+        .gyro-permission-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
         }
 
         .gyro-permission-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 25px;
-            font-size: 16px;
+            background: rgba(220, 156, 59, 0.1);
+            color: #f4e3d4;
+            border: 2px solid rgba(220, 156, 59, 0.3);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
-            margin: 0 10px;
             transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            backdrop-filter: blur(5px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gyro-permission-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(220, 156, 59, 0.2), transparent);
+            transition: left 0.5s ease;
         }
 
         .gyro-permission-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+            background: rgba(220, 156, 59, 0.2);
+            border-color: rgba(220, 156, 59, 0.5);
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(220, 156, 59, 0.3);
+        }
+
+        .gyro-permission-btn:hover::before {
+            left: 100%;
         }
 
         .gyro-permission-btn.skip {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+            background: rgba(209, 147, 107, 0.1);
+            border-color: rgba(209, 147, 107, 0.3);
         }
 
         .gyro-permission-btn.skip:hover {
-            box-shadow: 0 8px 25px rgba(245, 87, 108, 0.6);
+            background: rgba(209, 147, 107, 0.2);
+            border-color: rgba(209, 147, 107, 0.5);
+            box-shadow: 0 0 15px rgba(209, 147, 107, 0.3);
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            .gyro-permission {
+                bottom: 20px;
+                right: 20px;
+                left: 20px;
+            }
+            
+            .gyro-permission-content {
+                max-width: none;
+                padding: 15px;
+            }
+            
+            .gyro-permission-buttons {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .gyro-permission-btn {
+                padding: 12px 20px;
+                font-size: 16px;
+            }
         }
 
         #error-message {
@@ -389,13 +457,15 @@
         </button>
 
         <!-- 🎮 iOS陀螺儀授權按鈕 -->
-        <div id="gyro-permission" class="gyro-permission" style="display: none;">
+        <div id="gyro-permission" class="gyro-permission">
             <div class="gyro-permission-content">
-                <div class="gyro-permission-icon">📱</div>
+                <div class="gyro-permission-icon">🎮</div>
                 <div class="gyro-permission-title">啟用陀螺儀控制</div>
                 <div class="gyro-permission-desc">為了提供最佳的互動體驗，請允許存取裝置方向感測器</div>
-                <button id="enable-gyro-btn" class="gyro-permission-btn">啟用陀螺儀</button>
-                <button id="skip-gyro-btn" class="gyro-permission-btn skip">跳過</button>
+                <div class="gyro-permission-buttons">
+                    <button id="enable-gyro-btn" class="gyro-permission-btn">啟用陀螺儀</button>
+                    <button id="skip-gyro-btn" class="gyro-permission-btn skip">跳過</button>
+                </div>
             </div>
         </div>
         
@@ -910,7 +980,11 @@
                     // 行動裝置：檢查是否需要iOS授權
                     if (this.checkPermissionRequired()) {
                         console.log('📱 檢測到iOS裝置，需要陀螺儀授權');
-                        document.getElementById('gyro-permission').style.display = 'flex';
+                        // 延遲顯示授權介面，等待載入完成
+                        setTimeout(() => {
+                            const gyroPermission = document.getElementById('gyro-permission');
+                            gyroPermission.classList.add('show');
+                        }, 2000); // 2秒後顯示
                     } else {
                         // Android或其他裝置：直接啟用陀螺儀
                         console.log('📱 直接啟用陀螺儀控制');
@@ -1231,7 +1305,8 @@
                     enableGyroBtn.addEventListener('click', async () => {
                         const success = await this.startGyroControl();
                         if (success) {
-                            document.getElementById('gyro-permission').style.display = 'none';
+                            const gyroPermission = document.getElementById('gyro-permission');
+                            gyroPermission.classList.remove('show');
                         }
                     });
                 }
@@ -1239,7 +1314,8 @@
                 if (skipGyroBtn) {
                     skipGyroBtn.addEventListener('click', () => {
                         this.currentControlMode = 'pointer';
-                        document.getElementById('gyro-permission').style.display = 'none';
+                        const gyroPermission = document.getElementById('gyro-permission');
+                        gyroPermission.classList.remove('show');
                         console.log('跳過陀螺儀授權，使用滑鼠模式');
                     });
                 }

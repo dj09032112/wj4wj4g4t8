@@ -430,10 +430,9 @@
             <div class="gyro-permission-content">
                 <div class="gyro-permission-icon">🎮</div>
                 <div class="gyro-permission-title">陀螺儀控制</div>
-                <div class="gyro-permission-desc">啟用裝置方向感測器以獲得最佳體驗</div>
+                <div class="gyro-permission-desc">點擊啟用以獲得最佳互動體驗</div>
                 <div class="gyro-permission-buttons">
                     <button id="enable-gyro-btn" class="gyro-permission-btn primary">啟用</button>
-                    <button id="skip-gyro-btn" class="gyro-permission-btn">跳過</button>
                 </div>
             </div>
         </div>
@@ -677,37 +676,17 @@
             checkPermissionRequired() {
                 this.requiresPermission = typeof DeviceOrientationEvent !== 'undefined' && 
                                         typeof DeviceOrientationEvent.requestPermission === 'function';
+                
+                // 檢查是否已經授權過
+                if (this.requiresPermission) {
+                    const hasGranted = localStorage.getItem('gyroPermissionGranted');
+                    if (hasGranted === 'true') {
+                        console.log('📱 陀螺儀已授權，直接啟用');
+                        return false; // 不需要顯示授權介面
+                    }
+                }
+                
                 return this.requiresPermission;
-            }
-
-            // 🎮 檢查用戶是否已經做出過選擇
-            hasUserMadeChoice() {
-                const choice = localStorage.getItem('gyroPermissionChoice');
-                return choice !== null;
-            }
-
-            // 🎮 獲取用戶之前的選擇
-            getUserChoice() {
-                return localStorage.getItem('gyroPermissionChoice');
-            }
-
-            // 🎮 保存用戶選擇
-            saveUserChoice(choice) {
-                localStorage.setItem('gyroPermissionChoice', choice);
-                console.log(`💾 保存用戶選擇: ${choice}`);
-            }
-
-            // 🎮 檢查是否可以直接使用陀螺儀（無需授權）
-            canUseGyroDirectly() {
-                // 檢查是否支援陀螺儀但不需要授權（Android等）
-                return typeof DeviceOrientationEvent !== 'undefined' && 
-                       typeof DeviceOrientationEvent.requestPermission !== 'function';
-            }
-
-            // 🎮 重置用戶選擇（用於測試或重新選擇）
-            resetUserChoice() {
-                localStorage.removeItem('gyroPermissionChoice');
-                console.log('🔄 重置用戶陀螺儀選擇');
             }
 
             // 🎮 啟動陀螺儀控制
@@ -718,21 +697,17 @@
                         const permission = await DeviceOrientationEvent.requestPermission();
                         if (permission !== 'granted') {
                             console.log('❌ 陀螺儀授權被拒絕，使用滑鼠模式');
-                            this.saveUserChoice('denied');
                             this.currentControlMode = 'pointer';
                             return false;
                         }
                         console.log('✅ 陀螺儀授權成功');
-                        this.saveUserChoice('granted');
+                        // 儲存授權狀態到本地
+                        localStorage.setItem('gyroPermissionGranted', 'true');
                     } catch (error) {
                         console.error('❌ 陀螺儀授權失敗:', error);
-                        this.saveUserChoice('denied');
                         this.currentControlMode = 'pointer';
                         return false;
                     }
-                } else {
-                    // 不需要授權的裝置，直接標記為已授權
-                    this.saveUserChoice('granted');
                 }
 
                 // 註冊陀螺儀事件
@@ -982,42 +957,18 @@
             // 🎮 初始化控制系統
             async initControlSystem() {
                 if (this.isMobile) {
-                    // 檢查用戶是否已經做出過選擇
-                    if (this.hasUserMadeChoice()) {
-                        const userChoice = this.getUserChoice();
-                        console.log(`📱 用戶之前選擇: ${userChoice}`);
-                        
-                        if (userChoice === 'granted') {
-                            // 用戶之前選擇了授權，直接嘗試啟用陀螺儀
-                            console.log('📱 用戶已授權，直接啟用陀螺儀');
-                            await this.startGyroControl();
-                        } else if (userChoice === 'denied') {
-                            // 用戶之前選擇了拒絕，使用滑鼠模式
-                            console.log('📱 用戶已拒絕，使用滑鼠模式');
-                            this.currentControlMode = 'pointer';
-                        } else if (userChoice === 'skipped') {
-                            // 用戶之前選擇了跳過，使用滑鼠模式
-                            console.log('📱 用戶選擇跳過，使用滑鼠模式');
-                            this.currentControlMode = 'pointer';
-                        }
+                    // 行動裝置：檢查是否需要iOS授權
+                    if (this.checkPermissionRequired()) {
+                        console.log('📱 檢測到iOS裝置，需要陀螺儀授權');
+                        // 延遲顯示，避免擋住載入動畫
+                        setTimeout(() => {
+                            const gyroPermission = document.getElementById('gyro-permission');
+                            gyroPermission.classList.add('show');
+                        }, 2000); // 2秒後顯示
                     } else {
-                        // 用戶第一次使用，檢查是否需要授權
-                        if (this.checkPermissionRequired()) {
-                            console.log('📱 檢測到iOS裝置，需要陀螺儀授權');
-                            // 延遲顯示，避免擋住載入動畫
-                            setTimeout(() => {
-                                const gyroPermission = document.getElementById('gyro-permission');
-                                gyroPermission.classList.add('show');
-                            }, 2000); // 2秒後顯示
-                        } else if (this.canUseGyroDirectly()) {
-                            // Android或其他裝置：直接啟用陀螺儀
-                            console.log('📱 直接啟用陀螺儀控制');
-                            await this.startGyroControl();
-                        } else {
-                            // 不支援陀螺儀，使用滑鼠模式
-                            console.log('📱 不支援陀螺儀，使用滑鼠模式');
-                            this.currentControlMode = 'pointer';
-                        }
+                        // Android或其他裝置：直接啟用陀螺儀
+                        console.log('📱 直接啟用陀螺儀控制');
+                        await this.startGyroControl();
                     }
                 } else {
                     // 桌面裝置：使用滑鼠控制
@@ -1328,38 +1279,22 @@
 
                 // 5. 陀螺儀授權按鈕事件
                 const enableGyroBtn = document.getElementById('enable-gyro-btn');
-                const skipGyroBtn = document.getElementById('skip-gyro-btn');
                 
                 if (enableGyroBtn) {
                     enableGyroBtn.addEventListener('click', async () => {
                         const success = await this.startGyroControl();
-                        if (success) {
-                            const gyroPermission = document.getElementById('gyro-permission');
-                            gyroPermission.classList.remove('show');
-                            setTimeout(() => {
-                                gyroPermission.style.display = 'none';
-                            }, 500); // 等待淡出動畫完成
-                        } else {
-                            // 授權失敗，隱藏介面
-                            const gyroPermission = document.getElementById('gyro-permission');
-                            gyroPermission.classList.remove('show');
-                            setTimeout(() => {
-                                gyroPermission.style.display = 'none';
-                            }, 500);
-                        }
-                    });
-                }
-                
-                if (skipGyroBtn) {
-                    skipGyroBtn.addEventListener('click', () => {
-                        this.saveUserChoice('skipped');
-                        this.currentControlMode = 'pointer';
+                        // 無論成功與否都隱藏介面
                         const gyroPermission = document.getElementById('gyro-permission');
                         gyroPermission.classList.remove('show');
                         setTimeout(() => {
                             gyroPermission.style.display = 'none';
                         }, 500); // 等待淡出動畫完成
-                        console.log('跳過陀螺儀授權，使用滑鼠模式');
+                        
+                        if (!success) {
+                            // 如果授權失敗，切換到滑鼠模式
+                            this.currentControlMode = 'pointer';
+                            console.log('陀螺儀授權失敗，使用滑鼠模式');
+                        }
                     });
                 }
 
@@ -3060,17 +2995,6 @@
         // 全域變數用於存取ParallaxViewer實例
         let parallaxViewerInstance = null;
 
-        // 開發者調試功能：重置陀螺儀授權選擇
-        window.resetGyroPermission = function() {
-            if (parallaxViewerInstance) {
-                parallaxViewerInstance.resetUserChoice();
-                console.log('🔄 已重置陀螺儀授權選擇，請重新整理頁面測試');
-            } else {
-                localStorage.removeItem('gyroPermissionChoice');
-                console.log('🔄 已重置陀螺儀授權選擇，請重新整理頁面測試');
-            }
-        };
-
         // 返回按鈕處理函數
         function handleBackButton() {
             if (parallaxViewerInstance) {
@@ -3092,18 +3016,32 @@
             parallaxViewerInstance = new ParallaxViewer();
         });
 
-        // 請求裝置方向權限（iOS 13+）
-        if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            document.addEventListener('click', () => {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response === 'granted') {
-                            console.log('裝置方向權限已獲得');
+        // 開發模式：重置陀螺儀授權狀態（按兩下返回按鈕）
+        let backButtonClickCount = 0;
+        let backButtonClickTimer = null;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const backButton = document.getElementById('back-button');
+            if (backButton) {
+                backButton.addEventListener('click', () => {
+                    backButtonClickCount++;
+                    
+                    if (backButtonClickTimer) {
+                        clearTimeout(backButtonClickTimer);
+                    }
+                    
+                    backButtonClickTimer = setTimeout(() => {
+                        if (backButtonClickCount === 2) {
+                            // 雙擊重置授權狀態
+                            localStorage.removeItem('gyroPermissionGranted');
+                            console.log('🔄 陀螺儀授權狀態已重置');
+                            location.reload(); // 重新載入頁面
                         }
-                    })
-                    .catch(console.error);
-            }, { once: true });
-        }
+                        backButtonClickCount = 0;
+                    }, 300);
+                });
+            }
+        });
     </script>
 </body>
 </html>

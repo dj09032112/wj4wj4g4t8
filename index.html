@@ -394,21 +394,8 @@
             z-index: 1000; /* 內容層：最下層 */
         }
 
-        @media (max-width: 768px) {
-            #back-button {
-                width: 40px;
-                height: 40px;
-                top: 20px;
-                left: 20px;
-                border-radius: 50%;
-            }
-            
-            #back-button svg {
-                width: 18px;
-                height: 18px;
-            }
-            
-            /* 行動裝置：移除hover效果，只保留active效果 */
+        /* 觸控裝置：完全禁用hover效果 */
+        @media (hover: none) and (pointer: coarse) {
             #back-button:hover {
                 background: rgba(255, 255, 255, 0.08);
                 border-color: rgba(255, 255, 255, 0.2);
@@ -422,6 +409,37 @@
                 stroke: #f4e3d4;
                 filter: drop-shadow(0 0 8px rgba(244, 227, 212, 0.3));
                 transform: none;
+            }
+            
+            /* 觸控裝置：加強active狀態的視覺回饋 */
+            #back-button:active {
+                background: rgba(255, 255, 255, 0.25);
+                border-color: rgba(244, 227, 212, 0.5);
+                transform: translateY(0) scale(0.9);
+                box-shadow: 
+                    0 2px 8px rgba(0, 0, 0, 0.2),
+                    0 0 0 2px rgba(244, 227, 212, 0.2);
+            }
+            
+            #back-button:active svg {
+                stroke: #f4e3d4;
+                filter: drop-shadow(0 0 16px rgba(244, 227, 212, 0.8));
+                transform: translateX(-1px) scale(0.9);
+            }
+        }
+
+        @media (max-width: 768px) {
+            #back-button {
+                width: 40px;
+                height: 40px;
+                top: 20px;
+                left: 20px;
+                border-radius: 50%;
+            }
+            
+            #back-button svg {
+                width: 18px;
+                height: 18px;
             }
         }
 

@@ -475,21 +475,25 @@
         #canvas {
             display: block;
             z-index: 1000; /* 內容層：最下層 */
-            /* 🖥️ 確保canvas正確縮放 */
+            /* 🖥️ 確保canvas正確縮放並保持比例 */
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100vw !important;
             height: 100vh !important;
-            max-width: 100vw !important;
-            max-height: 100vh !important;
+            /* 確保canvas不會被擠壓變形 */
+            object-fit: cover;
         }
 
         #loading-canvas {
             display: block;
             z-index: 2000; /* 載入層 */
-            /* 🖥️ 確保載入canvas正確縮放 */
+            /* 🖥️ 確保載入canvas正確縮放並保持比例 */
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100vw !important;
             height: 100vh !important;
-            max-width: 100vw !important;
-            max-height: 100vh !important;
         }
 
         /* 觸控裝置：完全禁用hover效果 */
@@ -751,8 +755,9 @@
             </div>
         </div>
         
-        <canvas id="canvas"></canvas>
     </div>
+    
+    <canvas id="canvas"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -942,9 +947,10 @@
 
             // 🖥️ 更新渲染器大小（包含pixelRatio）
             updateRendererSize(renderer) {
+                // 設定渲染器的內部尺寸（包含pixelRatio）
                 renderer.setSize(window.innerWidth, window.innerHeight, false);
                 
-                // 🖥️ 確保畫布在CSS中正確縮放
+                // 🖥️ 確保畫布在CSS中正確縮放（保持視窗大小）
                 const canvas = renderer.domElement;
                 canvas.style.width = window.innerWidth + 'px';
                 canvas.style.height = window.innerHeight + 'px';

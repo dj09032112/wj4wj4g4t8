@@ -39,65 +39,47 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
             backdrop-filter: blur(12px);
             box-shadow: 
                 0 4px 16px rgba(0, 0, 0, 0.1),
                 0 1px 4px rgba(0, 0, 0, 0.05);
-            -webkit-tap-highlight-color: transparent; /* 移除行動裝置點擊高亮 */
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         #back-button:hover {
             background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(220, 156, 59, 0.4);
-            transform: translateY(-2px) scale(1.02);
+            border-color: rgba(244, 227, 212, 0.4);
+            transform: translateY(-2px) scale(1.05);
             box-shadow: 
                 0 8px 24px rgba(0, 0, 0, 0.15),
                 0 2px 8px rgba(0, 0, 0, 0.1),
-                0 0 0 1px rgba(220, 156, 59, 0.1);
+                0 0 0 1px rgba(244, 227, 212, 0.1);
         }
 
         #back-button:active {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(220, 156, 59, 0.6);
             transform: translateY(0) scale(0.95);
-            transition: all 0.1s ease;
-        }
-
-        /* 行動裝置專用：避免hover狀態持續 */
-        @media (hover: none) and (pointer: coarse) {
-            #back-button:hover {
-                background: rgba(255, 255, 255, 0.08);
-                border-color: rgba(255, 255, 255, 0.2);
-                transform: none;
-                box-shadow: 
-                    0 4px 16px rgba(0, 0, 0, 0.1),
-                    0 1px 4px rgba(0, 0, 0, 0.05);
-            }
-            
-            #back-button:active {
-                background: rgba(255, 255, 255, 0.15);
-                border-color: rgba(220, 156, 59, 0.4);
-                transform: translateY(-2px) scale(1.02);
-                box-shadow: 
-                    0 8px 24px rgba(0, 0, 0, 0.15),
-                    0 2px 8px rgba(0, 0, 0, 0.1),
-                    0 0 0 1px rgba(220, 156, 59, 0.1);
-            }
+            background: rgba(255, 255, 255, 0.2);
         }
 
         #back-button svg {
             width: 20px;
             height: 20px;
             stroke: #f4e3d4;
-            transition: all 0.3s ease;
+            transition: transform 0.3s ease, filter 0.15s ease;
             filter: drop-shadow(0 0 8px rgba(244, 227, 212, 0.3));
         }
 
         #back-button:hover svg {
-            stroke: #dc9c3b;
-            filter: drop-shadow(0 0 12px rgba(220, 156, 59, 0.6));
+            stroke: #f4e3d4;
+            filter: drop-shadow(0 0 12px rgba(244, 227, 212, 0.6));
             transform: translateX(-1px);
+        }
+
+        #back-button:active svg {
+            stroke: #f4e3d4;
+            transform: translateX(-1px) scale(0.95);
         }
 
         /* 層級 2: 載入層 (z-index: 2000+) */
@@ -426,6 +408,24 @@
                 height: 18px;
             }
             
+            /* 行動裝置：移除hover效果，只保留active效果 */
+            #back-button:hover {
+                background: rgba(255, 255, 255, 0.08);
+                border-color: rgba(255, 255, 255, 0.2);
+                transform: none;
+                box-shadow: 
+                    0 4px 16px rgba(0, 0, 0, 0.1),
+                    0 1px 4px rgba(0, 0, 0, 0.05);
+            }
+            
+            #back-button:hover svg {
+                stroke: #f4e3d4;
+                filter: drop-shadow(0 0 8px rgba(244, 227, 212, 0.3));
+                transform: none;
+            }
+        }
+
+        @media (max-width: 768px) {
             .loading-container {
                 padding: 20px;
             }
@@ -774,9 +774,11 @@
 
             // 🎮 啟動滑鼠控制
             startPointerControl() {
-                this.currentControlMode = 'pointer';
+                if (this.currentControlMode !== 'pointer') {
+                    this.currentControlMode = 'pointer';
+                    console.log('🖱️ 切換到滑鼠控制模式');
+                }
                 this.lastPointerTime = Date.now();
-                console.log('🖱️ 切換到滑鼠控制模式');
             }
 
             // 🎮 陀螺儀更新
@@ -854,9 +856,9 @@
                 this.targetMouse.x = newX;
                 this.targetMouse.y = newY;
                 
-                // 同時更新當前偏移值（用於混合控制系統）
-                this.currentOffsetX = newX;
-                this.currentOffsetY = newY;
+                // 🔧 修正：不要直接更新currentOffsetX/Y，讓updateMousePosition處理插值
+                // this.currentOffsetX = newX;
+                // this.currentOffsetY = newY;
             }
 
             // 🎮 控制模式監控
@@ -878,10 +880,10 @@
                 let aspectRatio;
                 if (texture && texture.image) {
                     aspectRatio = texture.image.width / texture.image.height;
-                    console.log(`使用圖片原始比例: ${texture.image.width}x${texture.image.height} (比例: ${aspectRatio.toFixed(3)})`);
+                    // console.log(`使用圖片原始比例: ${texture.image.width}x${texture.image.height} (比例: ${aspectRatio.toFixed(3)})`);
                 } else {
                     aspectRatio = 1920 / 1080; // 新的預設比例
-                    console.log(`使用預設比例: 1920x1080 (比例: ${aspectRatio.toFixed(3)})`);
+                    // console.log(`使用預設比例: 1920x1080 (比例: ${aspectRatio.toFixed(3)})`);
                 }
                 
                 const distance = 5;
@@ -1718,6 +1720,10 @@
                 // 更新 mouse 為當前插值後的位置
                 this.mouse.x = this.currentMouse.x;
                 this.mouse.y = this.currentMouse.y;
+                
+                // 🔧 修正：同時更新currentOffsetX/Y以供混合控制系統使用
+                this.currentOffsetX = this.currentMouse.x;
+                this.currentOffsetY = this.currentMouse.y;
             }
 
             updateParallax() {
@@ -2494,8 +2500,20 @@
                     blending: THREE.NormalBlending
                 });
                 
-                // 創建幾何體 - 調整大小以包含陰影範圍
-                const geometry = new THREE.PlaneGeometry(0.32, 0.32); // 增大以容納陰影
+                // 計算點點大小 - 使用與主圖相同的縮放邏輯
+                let dotSize;
+                if (this.layers.length > 0 && this.layers[0].userData.mainTexture) {
+                    // 獲取主圖的尺寸
+                    const { width, height } = this.calculateImageSize(this.layers[0].userData.mainTexture);
+                    // 點點大小設為主圖較小邊的 1/35，保持與主圖的視覺比例
+                    dotSize = Math.min(width, height) * 0.05;
+                } else {
+                    // 如果主圖還沒載入，使用預設大小
+                    dotSize = 0.32;
+                }
+                
+                // 創建幾何體 - 使用計算出的大小
+                const geometry = new THREE.PlaneGeometry(dotSize, dotSize);
                 
                 // 創建網格
                 const mesh = new THREE.Mesh(geometry, material);
@@ -2504,7 +2522,8 @@
                     dotId: config.id,
                     depthValue: config.depth,
                     baseOpacity: 0.85, // 稍高的基礎透明度確保可見性
-                    isVisible: false
+                    isVisible: false,
+                    baseSize: dotSize // 存儲基礎大小以便後續調整
                 };
                 
                 return mesh;
@@ -2519,7 +2538,7 @@
                 
                 const { width, height } = this.calculateImageSize(firstLayer.userData.mainTexture);
                 
-                // 更新每個點的基礎位置
+                // 更新每個點的基礎位置和大小
                 this.interactiveDots.forEach(dotData => {
                     const { config } = dotData;
                     
@@ -2533,6 +2552,14 @@
                     dotData.mesh.position.x = x;
                     dotData.mesh.position.y = y;
                     dotData.mesh.position.z = 0.1; // 確保在主圖層之上
+                    
+                    // 重新計算點點大小
+                    const dotSize = Math.min(width, height) * 0.028;
+                    dotData.mesh.userData.baseSize = dotSize;
+                    
+                    // 更新幾何體大小
+                    dotData.mesh.geometry.dispose();
+                    dotData.mesh.geometry = new THREE.PlaneGeometry(dotSize, dotSize);
                 });
                 
                 console.log('🔴 互動點點布局已更新');
@@ -2608,7 +2635,12 @@
                 if (this.viewState === 'main') {
                     // 主視角：檢查點點點擊
                     const dotMeshes = this.interactiveDots.map(dotData => dotData.mesh);
-                    const intersects = this.raycaster.intersectObjects(dotMeshes);
+                    let intersects = this.raycaster.intersectObjects(dotMeshes);
+                    
+                    // 如果是行動裝置且沒有精確命中，使用擴展的碰撞檢測
+                    if (this.isMobile && intersects.length === 0) {
+                        intersects = this.checkExtendedDotCollision(event.clientX, event.clientY);
+                    }
                     
                     if (intersects.length > 0) {
                         const pressedDot = intersects[0].object;
@@ -2651,6 +2683,54 @@
                         this.zoomToDetailView(clickedDot);
                     }
                 }
+            }
+
+            // 檢查擴展的點點碰撞（行動裝置專用）
+            checkExtendedDotCollision(clientX, clientY) {
+                if (!this.layers.length) return [];
+                
+                // 獲取主圖的尺寸
+                const firstLayer = this.layers[0];
+                if (!firstLayer.userData.mainTexture) return [];
+                
+                const { width, height } = this.calculateImageSize(firstLayer.userData.mainTexture);
+                
+                // 計算螢幕中心點
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                
+                // 計算點點在螢幕上的實際位置
+                const dotScreenPositions = this.interactiveDots.map(dotData => {
+                    const dotScreenX = centerX + dotData.mesh.position.x * (window.innerWidth / (width * this.IMAGE_SCALE));
+                    const dotScreenY = centerY - dotData.mesh.position.y * (window.innerHeight / (height * this.IMAGE_SCALE));
+                    return {
+                        dotData: dotData,
+                        screenX: dotScreenX,
+                        screenY: dotScreenY
+                    };
+                });
+                
+                // 計算擴展的碰撞範圍（點點大小的2倍）
+                const baseDotSize = Math.min(width, height) * 0.05; // 使用與createDotMesh相同的計算
+                const extendedRadius = baseDotSize * (window.innerWidth / (width * this.IMAGE_SCALE)) * 2; // 2倍大小
+                
+                // 檢查觸控點是否在任何點點的擴展範圍內
+                for (let i = 0; i < dotScreenPositions.length; i++) {
+                    const pos = dotScreenPositions[i];
+                    const deltaX = clientX - pos.screenX;
+                    const deltaY = clientY - pos.screenY;
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    
+                    if (distance <= extendedRadius) {
+                        // 返回模擬的intersect結果
+                        return [{
+                            object: pos.dotData.mesh,
+                            distance: distance
+                        }];
+                    }
+                }
+                
+                return [];
             }
 
             handleDotHover(event) {

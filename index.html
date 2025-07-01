@@ -136,7 +136,7 @@
             transform: translateX(-1px) scale(0.95);
         }
 
-        /* 全螢幕按鈕 - 預設隱藏，只在行動裝置顯示 */
+        /* 全螢幕按鈕 - 在所有裝置顯示 */
         #fullscreen-button {
             position: fixed;
             top: 25px;
@@ -148,7 +148,7 @@
             border-radius: 50%;
             cursor: pointer;
             z-index: 3000; /* UI 層：最上層 */
-            display: none; /* 預設隱藏 */
+            display: flex; /* 在所有裝置顯示 */
             align-items: center;
             justify-content: center;
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
@@ -587,8 +587,8 @@
             backface-visibility: hidden;
         }
 
-        /* 觸控裝置：完全禁用hover效果 */
-        @media (hover: none) and (pointer: coarse) {
+        /* 純觸控裝置：禁用hover效果（僅限於沒有滑鼠的裝置） */
+        @media (hover: none) and (pointer: coarse) and (max-width: 1024px) {
             /* 觸控裝置：調整過渡動畫時間，讓點擊效果更明顯 */
             #back-button, #fullscreen-button, #reset-view-button {
                 transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
@@ -598,20 +598,7 @@
                 transition: transform 0.15s ease, filter 0.2s ease;
             }
             
-            #back-button:hover, #fullscreen-button:hover, #reset-view-button:hover {
-                background: rgba(255, 255, 255, 0.08);
-                border-color: rgba(255, 255, 255, 0.2);
-                transform: none;
-                box-shadow: 
-                    0 4px 16px rgba(0, 0, 0, 0.1),
-                    0 1px 4px rgba(0, 0, 0, 0.05);
-            }
-            
-            #back-button:hover svg, #fullscreen-button:hover svg, #reset-view-button:hover svg {
-                stroke: #f4e3d4;
-                filter: drop-shadow(0 0 8px rgba(244, 227, 212, 0.3));
-                transform: none;
-            }
+
             
             /* 觸控裝置：加強active狀態的視覺回饋，更明顯的效果 */
             #back-button:active, #fullscreen-button:active, #reset-view-button:active {
@@ -641,21 +628,6 @@
             
             #back-button svg, #fullscreen-button svg, #reset-view-button svg {
                 transition: transform 0.15s ease, filter 0.2s ease;
-            }
-            
-            #back-button:hover, #fullscreen-button:hover, #reset-view-button:hover {
-                background: rgba(255, 255, 255, 0.08);
-                border-color: rgba(255, 255, 255, 0.2);
-                transform: none;
-                box-shadow: 
-                    0 4px 16px rgba(0, 0, 0, 0.1),
-                    0 1px 4px rgba(0, 0, 0, 0.05);
-            }
-            
-            #back-button:hover svg, #fullscreen-button:hover svg, #reset-view-button:hover svg {
-                stroke: #f4e3d4;
-                filter: drop-shadow(0 0 8px rgba(244, 227, 212, 0.3));
-                transform: none;
             }
             
             #back-button:active, #fullscreen-button:active, #reset-view-button:active {
@@ -731,10 +703,7 @@
             transition: all 0.1s ease;
         }
 
-        /* 行動裝置全螢幕按鈕顯示控制 */
-        .mobile-device #fullscreen-button {
-            display: flex !important;
-        }
+
 
         @media (max-width: 768px) {
             #back-button {
@@ -763,10 +732,9 @@
             }
         }
 
-        /* 行動裝置：顯示全螢幕按鈕 - 使用更寬鬆的條件 */
+        /* 行動裝置：調整全螢幕按鈕大小 */
         @media (max-width: 1024px) {
             #fullscreen-button {
-                display: flex !important;
                 width: 44px;
                 height: 44px;
                 top: 25px;
@@ -845,7 +813,7 @@
             </svg>
         </button>
 
-        <!-- 全螢幕按鈕 - 行動裝置專用 -->
+        <!-- 全螢幕按鈕 - 所有裝置可用 -->
         <button id="fullscreen-button" onclick="handleFullscreenButton()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
@@ -1279,12 +1247,13 @@
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                 const isLandscape = window.innerWidth > window.innerHeight;
                 
-                // 行動裝置且橫向時顯示全螢幕按鈕和重置視角按鈕
+                // 全螢幕按鈕在所有裝置都顯示
+                document.getElementById('fullscreen-button').style.display = 'flex';
+                
+                // 重置視角按鈕只在行動裝置且橫向時顯示
                 if (isMobile && isLandscape) {
-                    document.getElementById('fullscreen-button').style.display = 'flex';
                     document.getElementById('reset-view-button').style.display = 'flex';
                 } else {
-                    document.getElementById('fullscreen-button').style.display = 'none';
                     document.getElementById('reset-view-button').style.display = 'none';
                 }
             }
@@ -3742,14 +3711,11 @@
             
             // 觸控裝置檢測和優化
             function detectTouchDevice() {
-                const isTouchDevice = 'ontouchstart' in window || 
-                                    navigator.maxTouchPoints > 0 || 
-                                    navigator.msMaxTouchPoints > 0 ||
-                                    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                 
-                if (isTouchDevice) {
+                if (isMobile) {
                     document.body.classList.add('touch-device');
-                    console.log('📱 檢測到觸控裝置，啟用觸控優化');
+                    console.log('📱 檢測到行動裝置，啟用觸控優化');
                 } else {
                     document.body.classList.add('desktop-device');
                     console.log('🖥️ 檢測到桌面裝置');
@@ -3763,15 +3729,16 @@
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                 const isLandscape = window.innerWidth > window.innerHeight;
                 
-                // 行動裝置且橫向時顯示按鈕
+                // 全螢幕按鈕在所有裝置都顯示
+                fullscreenButton.style.display = 'flex';
+                
+                // 重置視角按鈕只在行動裝置且橫向時顯示
                 if (isMobile && isLandscape) {
-                    fullscreenButton.style.display = 'flex';
                     resetViewButton.style.display = 'flex';
-                    console.log('📱 行動裝置橫向：顯示全螢幕和重置視角按鈕');
+                    console.log('📱 行動裝置橫向：顯示重置視角按鈕');
                 } else {
-                    fullscreenButton.style.display = 'none';
                     resetViewButton.style.display = 'none';
-                    console.log('🖥️ 桌面裝置或直向：隱藏行動裝置按鈕');
+                    console.log('🖥️ 桌面裝置或直向：隱藏重置視角按鈕');
                 }
             }
             

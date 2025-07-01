@@ -984,6 +984,7 @@
                 
                 // 🔄 重置視角功能
                 this.isResetting = false;                  // 是否正在重置視角
+                this.parallaxFreeze = false;               // 是否凍結視差更新
                 this.lastRawX = 0;                         // 最新的原始X值
                 this.lastRawY = 0;                         // 最新的原始Y值
 
@@ -1169,7 +1170,10 @@
             // 🎮 陀螺儀更新
             gyroUpdate(event) {
                 if (this.currentControlMode !== 'gyro') return;
-
+                
+                // 4. gyroUpdate()：
+                if (this.isResetting) return;   // 動畫期間完全忽略 gyro
+                
                 // 獲取原始陀螺儀數值
                 const alpha = event.alpha || 0;
                 const beta = event.beta || 0;
@@ -1228,10 +1232,9 @@
                     });
                 }
                 
-                // 🔄 儲存最新的原始X/Y值，並檢查是否在重置期間
+                // 🔄 儲存最新的原始X/Y值
                 this.lastRawX = x;
                 this.lastRawY = y;
-                if (this.isResetting) return; // 重置期間不覆寫 currentOffset
             }
 
             // 🎮 滑鼠更新
@@ -1585,45 +1588,38 @@
 
             // 🔄 重置視角功能
             resetView() {
-                // 暫停 gyro／pointer 輸出
+                // 1. 在 resetView() 一開始：
                 this.isResetting = true;
+                this.parallaxFreeze = true;         // 新旗標
                 
-                // 記錄當前場景位置作為起始點
-                const startSceneX = this.scene.position.x;
-                const startSceneY = this.scene.position.y;
-                const startOffsetX = this.currentOffsetX;
-                const startOffsetY = this.currentOffsetY;
-                
+                // 取目前 smoothedDelta 當作 offset 起點
+                const startX = this.smoothedDelta.x;
+                const startY = this.smoothedDelta.y;
                 const duration = 400; // ms
                 const startTime = performance.now();
-                
-                console.log('🔄 開始重置視角動畫');
                 
                 const animate = (now) => {
                     const t = Math.min(1, (now - startTime) / duration);
                     const ease = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; // easeInOutQuad
                     
-                    // 平滑過渡場景位置到中心
-                    this.scene.position.x = THREE.MathUtils.lerp(startSceneX, 0, ease);
-                    this.scene.position.y = THREE.MathUtils.lerp(startSceneY, 0, ease);
-                    
-                    // 平滑過渡偏移值到0
-                    this.currentOffsetX = THREE.MathUtils.lerp(startOffsetX, 0, ease);
-                    this.currentOffsetY = THREE.MathUtils.lerp(startOffsetY, 0, ease);
+                    this.currentOffsetX = THREE.MathUtils.lerp(startX, 0, ease);
+                    this.currentOffsetY = THREE.MathUtils.lerp(startY, 0, ease);
                     
                     if (t < 1) {
                         requestAnimationFrame(animate);
                     } else {
-                        // 確保最終位置正確
-                        this.scene.position.x = 0;
-                        this.scene.position.y = 0;
+                        // 3. 在 resetView() 的動畫結束分支：
+                        this.scene.position.set(0, 0, 0);
                         this.currentOffsetX = 0;
                         this.currentOffsetY = 0;
-                        
-                        // 將當前原始 x/y 設為新 base
+                        // 為了確保差值回到 0，將 smoothedDelta 也歸零
+                        this.smoothedDelta.x = 0;
+                        this.smoothedDelta.y = 0;
+                        // 重新抓基準值
                         this.baseX = this.lastRawX;
                         this.baseY = this.lastRawY;
-                        this.smoothedDelta = { x: 0, y: 0 };
+                        // 解除凍結
+                        this.parallaxFreeze = false;
                         this.isResetting = false;
                         console.log('🔄 視角重置完成');
                     }
@@ -2222,6 +2218,9 @@
             updateMousePosition() {
                 if (this.isMobile) return; // 行動裝置不需要滑鼠插值
                 
+                // 重置期間不更新滑鼠位置
+                if (this.parallaxFreeze) return;
+                
                 if (this.mouseInsidePage) {
                     // 滑鼠在頁面內的正常跟隨邏輯
                     const deltaX = this.targetMouse.x - this.currentMouse.x;
@@ -2283,8 +2282,8 @@
             updateParallax() {
                 if (!this.loadingComplete) return;
                 
-                // 🔄 重置期間不處理視差更新，避免覆蓋動畫
-                if (this.isResetting) return;
+                // 2. 在 updateParallax() 開頭加：
+                if (this.parallaxFreeze) return;    // 重置期間不再改寫 scene.position
 
                 // 更新滑鼠位置插值
                 this.updateMousePosition();
@@ -2377,6 +2376,9 @@
 
             // 🔧 新增：獨立的主視差應用方法
             applyMainParallax(inputX, inputY) {
+                // 重置期間不處理主視差效果
+                if (this.parallaxFreeze) return;
+                
                 this.layers.forEach((layer) => {
                     const userData = layer.userData;
                     
@@ -3125,6 +3127,9 @@
             updateInteractiveDotsParallax(inputX, inputY) {
                 if (!this.interactiveDots.length) return;
                 
+                // 重置期間不處理點點視差效果
+                if (this.parallaxFreeze) return;
+                
                 this.interactiveDots.forEach(dotData => {
                     const { mesh, basePosition, config } = dotData;
                     
@@ -3573,6 +3578,9 @@
 
             // 🕹️ 局部視角控制方法
             updateDetailViewControl(inputX, inputY) {
+                // 重置期間不處理局部視角控制
+                if (this.parallaxFreeze) return;
+                
                 // 更新局部視角的滑鼠位置
                 this.detailViewMouse.x = inputX;
                 this.detailViewMouse.y = inputY;

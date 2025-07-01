@@ -713,7 +713,11 @@
                 this.smoothedDelta.x = this.smoothedDelta.x * (1 - this.SMOOTH_ALPHA) + deltaX * this.SMOOTH_ALPHA;
                 this.smoothedDelta.y = this.smoothedDelta.y * (1 - this.SMOOTH_ALPHA) + deltaY * this.SMOOTH_ALPHA;
 
-                // 更新當前偏移值
+                // 更新orientation值（用於原本的視差系統）
+                this.orientation.x = this.smoothedDelta.x;
+                this.orientation.y = this.smoothedDelta.y;
+
+                // 同時更新當前偏移值（用於混合控制系統）
                 this.currentOffsetX = this.smoothedDelta.x;
                 this.currentOffsetY = this.smoothedDelta.y;
             }
@@ -1605,10 +1609,14 @@
                     // 桌面版滑鼠控制：使用插值後的滑鼠位置
                     inputX = this.mouse.x * this.parallaxTransitionProgress;
                     inputY = this.mouse.y * this.parallaxTransitionProgress;
+                    
+                    // 同時更新orientation值（用於原本的視差系統）
+                    this.orientation.x = inputX;
+                    this.orientation.y = inputY;
                 } else {
-                    // 陀螺儀控制或行動版：使用統一的偏移值
-                    inputX = this.currentOffsetX * this.parallaxTransitionProgress;
-                    inputY = this.currentOffsetY * this.parallaxTransitionProgress;
+                    // 陀螺儀控制或行動版：使用orientation值（已經在gyroUpdate中更新）
+                    inputX = this.orientation.x * this.parallaxTransitionProgress;
+                    inputY = this.orientation.y * this.parallaxTransitionProgress;
                 }
                 
                 // 🔧 修正：在過渡期間和不同視角下都要處理滑鼠輸入

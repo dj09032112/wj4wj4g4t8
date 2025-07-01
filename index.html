@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>互動式視差網頁</title>
     <style>
         * {
@@ -10,17 +10,40 @@
             padding: 0;
             box-sizing: border-box;
         }
+        
+        html {
+            /* 📱 確保html在方向變化時正確處理 */
+            width: 100vw;
+            height: 100vh;
+            min-width: 100vw;
+            min-height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
+            overflow: hidden;
+        }
 
         body {
             background: linear-gradient(135deg, #000000, #1a1a1a);
             overflow: hidden;
             font-family: Arial, sans-serif;
+            /* 📱 確保body在方向變化時正確處理 */
+            width: 100vw;
+            height: 100vh;
+            min-width: 100vw;
+            min-height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
         }
 
         #container {
             width: 100vw;
             height: 100vh;
             position: relative;
+            /* 📱 確保容器在方向變化時正確處理 */
+            min-width: 100vw;
+            min-height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
         }
 
         /* 🎭 三層級架構 Z-Index 定義 */
@@ -1156,9 +1179,6 @@
                 });
                 this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
                 this.loadingRenderer.setClearColor(0x000000, 1);
-                
-                // 確保第一次載入渲染器尺寸正確
-                this.handleResize();
             }
 
             loadLoadingCover() {
@@ -1218,11 +1238,11 @@
             }
 
             init() {
+                this.setupLoadingScene();
                 this.setupScene();
-                this.setupLoadingScene(); // 內部會呼叫 handleResize
                 this.setupEventListeners();
-                this.createLoadingParticles();
-                this.randomizeSpinnerRings();
+                this.createLoadingParticles(); // 創建載入粒子效果
+                this.randomizeSpinnerRings(); // 設定隨機旋轉效果
                 
                 // 🎭 設定層級引用
                 this.loadingLayer = this.loadingScene; // 載入層：Three.js 場景
@@ -1388,26 +1408,6 @@
                 });
             }
 
-            // 統一的尺寸更新入口
-            handleResize() {
-                // 主場景
-                if (this.camera && this.renderer) {
-                    this.camera.aspect = window.innerWidth / window.innerHeight;
-                    this.camera.updateProjectionMatrix();
-                    this.renderer.setSize(window.innerWidth, window.innerHeight);
-                }
-                // loading 場景（可能尚未建立）
-                if (this.loadingCamera && this.loadingRenderer) {
-                    this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
-                    this.loadingCamera.updateProjectionMatrix();
-                    this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
-                }
-                // 更新所有 PlaneGeometry
-                this.updateAllLayerSizes?.();
-                // log
-                console.log('📐 Resize 完成:', window.innerWidth, window.innerHeight);
-            }
-
             // 更新所有圖層的尺寸
             updateAllLayerSizes() {
                 // 更新載入場景中的網格
@@ -1500,9 +1500,6 @@
                 console.log('🔴 互動點點: renderOrder 1 (最上層)');
                 console.log('🔍 局部圖層: z軸 0.06~0.08 (dot1:0.06, dot2:0.07, dot3:0.08), depthWrite:false');
                 console.log('🖼️ 主要圖層: renderOrder 0 (最下層)');
-                
-                // 確保第一次載入渲染器尺寸正確
-                this.handleResize();
             }
 
             setupEventListeners() {
@@ -1518,17 +1515,26 @@
                         this.baseX = null;
                         this.baseY = null;
                         this.smoothedDelta = { x: 0, y: 0 };
-                        // 延遲到下一個 resize 事件或 2 個 requestAnimationFrame 後再執行
-                        let waited = 0;
-                        const waitResize = () => {
-                            if (waited < 2) {
-                                waited++;
-                                requestAnimationFrame(waitResize);
-                            } else {
-                                this.handleResize(); // 這時 innerWidth / innerHeight 已正確
+                        
+                        // 📱 修正：螢幕方向變化時強制重新計算容器大小
+                        // 延遲執行，確保瀏覽器完成方向變化
+                        setTimeout(() => {
+                            console.log('🔄 方向變化後重新計算容器大小');
+                            // 強制觸發resize事件處理邏輯
+                            this.camera.aspect = window.innerWidth / window.innerHeight;
+                            this.camera.updateProjectionMatrix();
+                            this.renderer.setSize(window.innerWidth, window.innerHeight);
+                            
+                            // 同時調整載入場景
+                            if (this.loadingCamera && this.loadingRenderer) {
+                                this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                                this.loadingCamera.updateProjectionMatrix();
+                                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
                             }
-                        };
-                        waitResize();
+                            
+                            // 重新計算所有圖層尺寸
+                            this.updateAllLayerSizes();
+                        }, 100); // 延遲100ms確保方向變化完成
                     }
                 };
 
@@ -1615,7 +1621,19 @@
 
                 // 視窗大小調整
                 window.addEventListener('resize', () => {
-                    this.handleResize();
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    
+                    // 同時調整載入場景
+                    if (this.loadingCamera && this.loadingRenderer) {
+                        this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                        this.loadingCamera.updateProjectionMatrix();
+                        this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
+                    }
+
+                    // 自動重新計算並調整所有圖層的 PlaneGeometry
+                    this.updateAllLayerSizes();
                 });
             }
 

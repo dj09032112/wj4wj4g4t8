@@ -396,6 +396,15 @@
 
         /* 觸控裝置：完全禁用hover效果 */
         @media (hover: none) and (pointer: coarse) {
+            /* 觸控裝置：調整過渡動畫時間，讓點擊效果更明顯 */
+            #back-button {
+                transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+            }
+            
+            #back-button svg {
+                transition: transform 0.15s ease, filter 0.2s ease;
+            }
+            
             #back-button:hover {
                 background: rgba(255, 255, 255, 0.08);
                 border-color: rgba(255, 255, 255, 0.2);
@@ -411,20 +420,23 @@
                 transform: none;
             }
             
-            /* 觸控裝置：加強active狀態的視覺回饋 */
+            /* 觸控裝置：加強active狀態的視覺回饋，更明顯的效果 */
             #back-button:active {
-                background: rgba(255, 255, 255, 0.25);
-                border-color: rgba(244, 227, 212, 0.5);
-                transform: translateY(0) scale(0.9);
+                background: rgba(255, 255, 255, 0.35);
+                border-color: rgba(244, 227, 212, 0.7);
+                transform: translateY(1px) scale(0.85);
                 box-shadow: 
-                    0 2px 8px rgba(0, 0, 0, 0.2),
-                    0 0 0 2px rgba(244, 227, 212, 0.2);
+                    0 1px 4px rgba(0, 0, 0, 0.3),
+                    0 0 0 3px rgba(244, 227, 212, 0.3),
+                    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+                transition: all 0.1s ease;
             }
             
             #back-button:active svg {
                 stroke: #f4e3d4;
-                filter: drop-shadow(0 0 16px rgba(244, 227, 212, 0.8));
-                transform: translateX(-1px) scale(0.9);
+                filter: drop-shadow(0 0 20px rgba(244, 227, 212, 1.0));
+                transform: translateX(-1px) scale(0.85);
+                transition: all 0.1s ease;
             }
         }
 

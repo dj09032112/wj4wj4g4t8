@@ -494,6 +494,8 @@
             left: 0;
             width: 100vw !important;
             height: 100vh !important;
+            /* 確保載入canvas不會被擠壓變形 */
+            object-fit: cover;
         }
 
         /* 觸控裝置：完全禁用hover效果 */
@@ -701,7 +703,6 @@
 <body>
     <div id="container">
         <div id="loading-cover">
-            <canvas id="loading-canvas"></canvas>
         </div>
         
         <div id="loading">
@@ -757,6 +758,7 @@
         
     </div>
     
+    <canvas id="loading-canvas"></canvas>
     <canvas id="canvas"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1527,6 +1529,12 @@
                 
                 // 🔍 更新局部圖層的位置和縮放
                 this.updateDetailLayersLayout();
+                
+                // 🖥️ 確保載入相機也更新投影矩陣
+                if (this.loadingCamera) {
+                    this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                    this.loadingCamera.updateProjectionMatrix();
+                }
             }
 
             setupScene() {

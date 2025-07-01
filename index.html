@@ -33,7 +33,7 @@
             height: 44px;
             background: rgba(255, 255, 255, 0.08);
             border: 1.5px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
+            border-radius: 50%;
             cursor: pointer;
             z-index: 3000; /* UI 層：最上層 */
             display: flex;
@@ -44,6 +44,7 @@
             box-shadow: 
                 0 4px 16px rgba(0, 0, 0, 0.1),
                 0 1px 4px rgba(0, 0, 0, 0.05);
+            -webkit-tap-highlight-color: transparent; /* 移除行動裝置點擊高亮 */
         }
 
         #back-button:hover {
@@ -57,8 +58,32 @@
         }
 
         #back-button:active {
-            transform: translateY(0) scale(0.98);
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(220, 156, 59, 0.6);
+            transform: translateY(0) scale(0.95);
             transition: all 0.1s ease;
+        }
+
+        /* 行動裝置專用：避免hover狀態持續 */
+        @media (hover: none) and (pointer: coarse) {
+            #back-button:hover {
+                background: rgba(255, 255, 255, 0.08);
+                border-color: rgba(255, 255, 255, 0.2);
+                transform: none;
+                box-shadow: 
+                    0 4px 16px rgba(0, 0, 0, 0.1),
+                    0 1px 4px rgba(0, 0, 0, 0.05);
+            }
+            
+            #back-button:active {
+                background: rgba(255, 255, 255, 0.15);
+                border-color: rgba(220, 156, 59, 0.4);
+                transform: translateY(-2px) scale(1.02);
+                box-shadow: 
+                    0 8px 24px rgba(0, 0, 0, 0.15),
+                    0 2px 8px rgba(0, 0, 0, 0.1),
+                    0 0 0 1px rgba(220, 156, 59, 0.1);
+            }
         }
 
         #back-button svg {
@@ -393,7 +418,7 @@
                 height: 40px;
                 top: 20px;
                 left: 20px;
-                border-radius: 10px;
+                border-radius: 50%;
             }
             
             #back-button svg {

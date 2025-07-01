@@ -1218,11 +1218,11 @@
             }
 
             init() {
-                this.setupLoadingScene();
                 this.setupScene();
+                this.setupLoadingScene(); // 內部會呼叫 handleResize
                 this.setupEventListeners();
-                this.createLoadingParticles(); // 創建載入粒子效果
-                this.randomizeSpinnerRings(); // 設定隨機旋轉效果
+                this.createLoadingParticles();
+                this.randomizeSpinnerRings();
                 
                 // 🎭 設定層級引用
                 this.loadingLayer = this.loadingScene; // 載入層：Three.js 場景
@@ -1390,19 +1390,20 @@
 
             // 統一的尺寸更新入口
             handleResize() {
-                // 1) 更新 renderer & loadingRenderer
-                this.camera.aspect = window.innerWidth / window.innerHeight;
-                this.camera.updateProjectionMatrix();
-                this.renderer.setSize(window.innerWidth, window.innerHeight);
-                
-                if (this.loadingRenderer && this.loadingCamera) {
+                // 主場景
+                if (this.camera && this.renderer) {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                }
+                // loading 場景（可能尚未建立）
+                if (this.loadingCamera && this.loadingRenderer) {
                     this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
                     this.loadingCamera.updateProjectionMatrix();
                     this.loadingRenderer.setSize(window.innerWidth, window.innerHeight);
                 }
-                
-                // 2) 重新計算所有 PlaneGeometry 尺寸
-                this.updateAllLayerSizes();
+                // 更新所有 PlaneGeometry
+                this.updateAllLayerSizes?.();
             }
 
             // 更新所有圖層的尺寸

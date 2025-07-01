@@ -1610,11 +1610,13 @@
                     if (t < 1) {
                         requestAnimationFrame(animate);
                     } else {
-                        // 歸零並建立新基準
+                        // 1. 在 resetView() 動畫結束區段 **不要**重新賦值 baseX / baseY，
+                        // 而是清空並等待下一筆 gyro 事件自動重建基準：
                         this.currentOffsetX = 0;
                         this.currentOffsetY = 0;
-                        this.baseX = this.lastRawX;
-                        this.baseY = this.lastRawY;
+                        this.smoothedDelta = { x: 0, y: 0 };
+                        this.baseX = null;        // 讓下一筆 gyro 決定新基準
+                        this.baseY = null;
                         this.isResetting = false;
                         console.log('🔄 視角重置完成');
                     }

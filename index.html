@@ -958,7 +958,7 @@
                 
                 // 🔄 重置視角功能
                 this.isResetting = false;                  // 是否正在重置視角
-                this.isOrientationChanging = false;        // 是否正在改變螢幕方向
+                this.isOrientationTransitioning = false;   // 是否正在進行螢幕方向過渡
                 this.lastRawX = 0;                         // 最新的原始X值
                 this.lastRawY = 0;                         // 最新的原始Y值
 
@@ -1146,8 +1146,7 @@
                 if (this.currentControlMode !== 'gyro') return;
                 
                 // 4. gyroUpdate()：
-                if (this.isResetting) return;   // 動畫期間完全忽略 gyro
-                if (this.isOrientationChanging) return;   // 方向變化期間忽略陀螺儀輸入
+                if (this.isResetting || this.isOrientationTransitioning) return;   // 動畫期間完全忽略 gyro
                 
                 // 獲取原始陀螺儀數值
                 const alpha = event.alpha || 0;
@@ -1215,8 +1214,7 @@
             // 🎮 滑鼠更新
             pointerUpdate(x, y) {
                 if (this.currentControlMode !== 'pointer') return;
-                if (this.isResetting) return; // 🔄 重置期間不處理滑鼠輸入
-                if (this.isOrientationChanging) return; // 🔄 方向變化期間不處理滑鼠輸入
+                if (this.isResetting || this.isOrientationTransitioning) return; // 🔄 重置期間不處理滑鼠輸入
 
                 // 使用原本的滑鼠位置計算公式：產生 -1 到 +1 的範圍
                 const newX = (x / window.innerWidth) * 2 - 1;
@@ -1234,9 +1232,7 @@
             // 🎮 控制模式監控
             monitorControlMode() {
                 // 🔄 重置期間禁止強制切換模式
-                if (this.isResetting) return;
-                // 🔄 方向變化期間禁止強制切換模式
-                if (this.isOrientationChanging) return;
+                if (this.isResetting || this.isOrientationTransitioning) return;
                 
                 const now = Date.now();
                 
@@ -1610,6 +1606,52 @@
                 requestAnimationFrame(animate);
             }
 
+            // 🔄 螢幕方向變化平滑過渡功能
+            smoothOrientationTransition() {
+                // 如果正在重置或過渡中，不執行方向過渡
+                if (this.isResetting || this.isTransitioning) return;
+                
+                // 設定方向過渡標誌
+                this.isOrientationTransitioning = true;
+                
+                // 取目前 smoothedDelta 當作 offset 起點
+                const startX = this.smoothedDelta.x;
+                const startY = this.smoothedDelta.y;
+                const duration = 300; // ms，比重置視角稍短
+                const startTime = performance.now();
+                
+                const animate = (now) => {
+                    const t = Math.min(1, (now - startTime) / duration);
+                    const ease = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; // easeInOutQuad
+                    const offsetX = THREE.MathUtils.lerp(startX, 0, ease);
+                    const offsetY = THREE.MathUtils.lerp(startY, 0, ease);
+
+                    // 🔧 根據當前視角狀態選擇適當的視差處理方式
+                    if (this.viewState === 'detail' && !this.isTransitioning) {
+                        // 🕹️ 局部圖視角：應用局部視角控制
+                        this.updateDetailViewControl(offsetX, offsetY);
+                    } else {
+                        // 🖼️ 主視角或過渡期間：應用主視差效果
+                        this.applyMainParallax(offsetX, offsetY);
+                    }
+
+                    if (t < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        // 動畫完成後，清空基準值並等待下一筆陀螺儀事件重建基準
+                        this.currentOffsetX = 0;
+                        this.currentOffsetY = 0;
+                        this.smoothedDelta = { x: 0, y: 0 };
+                        this.baseX = null;        // 讓下一筆 gyro 決定新基準
+                        this.baseY = null;
+                        this.isOrientationTransitioning = false;
+                        console.log('🔄 螢幕方向變化過渡完成');
+                    }
+                };
+                
+                requestAnimationFrame(animate);
+            }
+
             // 更新所有圖層的尺寸
             updateAllLayerSizes() {
                 // 更新載入場景中的網格
@@ -1725,13 +1767,10 @@
                     const newOrientation = this.getScreenOrientation();
                     if (newOrientation !== this.currentOrientation) {
                         console.log(`🔄 螢幕方向變化: ${this.currentOrientation} → ${newOrientation}`);
-                        
-                        // 🔧 修正：方向變化期間暫時凍結陀螺儀輸入
-                        this.isOrientationChanging = true;
-                        
-                        // 記錄變化前的狀態
-                        const oldOrientation = this.currentOrientation;
                         this.currentOrientation = newOrientation;
+                        
+                        // 🔧 修正：使用平滑過渡而非直接重設基準值
+                        this.smoothOrientationTransition();
                         
                         // 📱 修正：螢幕方向變化時強制重新計算容器大小
                         // 延遲執行，確保瀏覽器完成方向變化
@@ -1771,17 +1810,6 @@
                             
                             // 重新計算所有圖層尺寸
                             this.updateAllLayerSizes();
-                            
-                            // 🔧 修正：方向變化完成後，延遲重置基準值，避免跳動
-                            setTimeout(() => {
-                                console.log('🔄 方向變化完成，重置基準值');
-                                this.baseX = null;
-                                this.baseY = null;
-                                this.smoothedDelta = { x: 0, y: 0 };
-                                this.currentOffsetX = 0;
-                                this.currentOffsetY = 0;
-                                this.isOrientationChanging = false;
-                            }, 300); // 延遲300ms確保裝置穩定
                         }, 100); // 延遲100ms確保方向變化完成
                     }
                 };
@@ -2275,9 +2303,7 @@
                 if (!this.loadingComplete) return;
                 
                 // 重置期間不更新視差，讓動畫迴圈處理
-                if (this.isResetting) return;
-                // 方向變化期間不更新視差，避免跳動
-                if (this.isOrientationChanging) return;
+                if (this.isResetting || this.isOrientationTransitioning) return;
 
                 // 更新滑鼠位置插值
                 this.updateMousePosition();

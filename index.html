@@ -966,9 +966,7 @@
                 this.isOrientationTransitioning = false;   // 是否正在進行螢幕方向過渡
                 this.lastRawX = 0;                         // 最新的原始X值
                 this.lastRawY = 0;                         // 最新的原始Y值
-                this.lastAlpha = 0;                        // 上一次的alpha值
-                this.alphaWrapped = false;                 // alpha是否已經繞過360度
-                this.alphaOffset = 0;                      // alpha的累積偏移量
+                this.lastAlpha = null;                     // 上一次的alpha值，用於處理360度跳動
 
                 /*
                  * 📖 參數說明：
@@ -1054,25 +1052,25 @@
                 // beta: 前後傾斜（-180到180度，前傾為正，後傾為負）
                 // gamma: 左右傾斜（-90到90度，右傾為正，左傾為負）
                 
-                // 🔧 處理alpha的360度跳躍問題
-                let normalizedAlpha = alpha;
-                if (this.lastAlpha !== 0) {
+                // 🔧 處理alpha的360度跳動問題
+                let continuousAlpha = alpha;
+                if (this.lastAlpha !== null) {
+                    // 計算alpha的差值，處理360度跳動
                     let alphaDiff = alpha - this.lastAlpha;
                     
-                    // 檢測360度跳躍
+                    // 如果差值超過180度，可能是360度跳動
                     if (alphaDiff > 180) {
-                        // 從360跳到0
-                        this.alphaOffset -= 360;
-                        this.alphaWrapped = true;
+                        alphaDiff -= 360;
                     } else if (alphaDiff < -180) {
-                        // 從0跳到360
-                        this.alphaOffset += 360;
-                        this.alphaWrapped = true;
+                        alphaDiff += 360;
                     }
                     
-                    normalizedAlpha = alpha + this.alphaOffset;
+                    // 使用連續的alpha值
+                    continuousAlpha = this.lastAlpha + alphaDiff;
                 }
-                this.lastAlpha = alpha;
+                
+                // 更新lastAlpha
+                this.lastAlpha = continuousAlpha;
                 
                 switch (this.currentOrientation) {
                     case 'portrait-primary':
@@ -1088,14 +1086,29 @@
                         break;
                         
                     case 'landscape-primary':
-                        // 橫向正向：動態軸向轉換
-                        x = this.transformLandscapeX(beta, normalizedAlpha, gamma);
+                        // 🔧 橫向正向：根據gamma角度動態調整X軸控制
+                        // gamma從0到90度時，X軸從beta逐漸過渡到alpha
+                        const gammaAbs = Math.abs(gamma);
+                        const transitionFactor = Math.min(gammaAbs / 90, 1); // 0到1的過渡因子
+                        
+                        // 混合beta和alpha控制X軸
+                        const betaContribution = beta * (1 - transitionFactor);
+                        const alphaContribution = (continuousAlpha - 180) * transitionFactor; // 將alpha中心化到0
+                        x = betaContribution + alphaContribution;
+                        
                         y = -gamma; // 左右傾反轉 → Y軸（上下移動）
                         break;
                         
                     case 'landscape-secondary':
-                        // 橫向倒置：動態軸向轉換
-                        x = -this.transformLandscapeX(beta, normalizedAlpha, gamma);
+                        // 🔧 橫向倒置：根據gamma角度動態調整X軸控制
+                        const gammaAbs2 = Math.abs(gamma);
+                        const transitionFactor2 = Math.min(gammaAbs2 / 90, 1);
+                        
+                        // 混合beta和alpha控制X軸（反轉）
+                        const betaContribution2 = -beta * (1 - transitionFactor2);
+                        const alphaContribution2 = -(continuousAlpha - 180) * transitionFactor2;
+                        x = betaContribution2 + alphaContribution2;
+                        
                         y = gamma;  // 左右傾 → Y軸
                         break;
                         
@@ -1106,45 +1119,6 @@
                 }
                 
                 return { x, y };
-            }
-
-            // 🔧 橫向模式下的動態X軸轉換
-            transformLandscapeX(beta, normalizedAlpha, gamma) {
-                // 計算gamma的絕對值，用於決定混合比例
-                const gammaAbs = Math.abs(gamma);
-                
-                // 當gamma從0到90度時，beta軸逐漸轉換為alpha控制
-                // 使用gamma的絕對值作為混合權重
-                const gammaWeight = Math.min(gammaAbs / 90, 1.0);
-                
-                // 將alpha從0-360度範圍映射到-180到180度範圍
-                let mappedAlpha = normalizedAlpha;
-                if (mappedAlpha > 180) {
-                    mappedAlpha -= 360;
-                }
-                
-                // 線性插值：gamma=0時完全使用beta，gamma=90時完全使用alpha
-                const betaComponent = beta * (1 - gammaWeight);
-                const alphaComponent = mappedAlpha * gammaWeight;
-                
-                // 組合兩個軸向
-                const combinedX = betaComponent + alphaComponent;
-                
-                // 可選：添加調試資訊
-                if (this.debugCounter && this.debugCounter % 100 === 0) {
-                    console.log('🎛️ 橫向軸向轉換:', {
-                        gamma: gamma.toFixed(1),
-                        gammaWeight: gammaWeight.toFixed(3),
-                        beta: beta.toFixed(1),
-                        alpha: normalizedAlpha.toFixed(1),
-                        mappedAlpha: mappedAlpha.toFixed(1),
-                        betaComponent: betaComponent.toFixed(1),
-                        alphaComponent: alphaComponent.toFixed(1),
-                        combinedX: combinedX.toFixed(1)
-                    });
-                }
-                
-                return combinedX;
             }
 
             // 🎮 檢測是否需要iOS授權
@@ -1662,10 +1636,7 @@
                         this.smoothedDelta = { x: 0, y: 0 };
                         this.baseX = null;        // 讓下一筆 gyro 決定新基準
                         this.baseY = null;
-                        // 🔧 重置alpha相關變數
-                        this.lastAlpha = 0;
-                        this.alphaWrapped = false;
-                        this.alphaOffset = 0;
+                        this.lastAlpha = null;    // 重置alpha連續性
                         this.isResetting = false;
                         console.log('🔄 視角重置完成');
                     }
@@ -1712,10 +1683,7 @@
                         this.smoothedDelta = { x: 0, y: 0 };
                         this.baseX = null;        // 讓下一筆 gyro 決定新基準
                         this.baseY = null;
-                        // 🔧 重置alpha相關變數
-                        this.lastAlpha = 0;
-                        this.alphaWrapped = false;
-                        this.alphaOffset = 0;
+                        this.lastAlpha = null;    // 重置alpha連續性
                         this.isOrientationTransitioning = false;
                         console.log('🔄 螢幕方向變化過渡完成');
                     }

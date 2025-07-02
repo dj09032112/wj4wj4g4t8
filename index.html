@@ -1051,53 +1051,50 @@
                 // beta: 前後傾斜（-180到180度，前傾為正，後傾為負）
                 // gamma: 左右傾斜（-90到90度，右傾為正，左傾為負）
                 
-                switch (this.currentOrientation) {
-                    case 'portrait-primary':
-                        // 直立正向：gamma控制左右，beta控制上下
-                        x = gamma;  // 左右傾 → X軸（左右移動）
-                        y = beta;   // 前後傾 → Y軸（上下移動）
-                        break;
-                        
-                    case 'portrait-secondary':
-                        // 直立倒置：需要反轉軸向
-                        x = -gamma; // 左右傾反轉 → X軸
-                        y = -beta;  // 前後傾反轉 → Y軸
-                        break;
-                        
-                    case 'landscape-primary':
-                        // 🔧 橫向正向：根據gamma角度動態調整X軸控制
-                        // gamma從0到90度時，X軸控制從beta逐漸過渡到alpha
-                        const gammaAbs = Math.abs(gamma);
-                        const transitionFactor = Math.min(gammaAbs / 90, 1); // 0到1的過渡係數
-                        
-                        // X軸：beta和alpha的混合控制
-                        const betaX = beta;   // beta控制X軸
-                        const alphaX = alpha; // alpha控制X軸
-                        x = betaX * (1 - transitionFactor) + alphaX * transitionFactor;
-                        
-                        // Y軸：gamma控制上下（方向需要調整）
-                        y = -gamma;
-                        break;
-                        
-                    case 'landscape-secondary':
-                        // 🔧 橫向倒置：根據gamma角度動態調整X軸控制
-                        // gamma從0到90度時，X軸控制從beta逐漸過渡到alpha
-                        const gammaAbs2 = Math.abs(gamma);
-                        const transitionFactor2 = Math.min(gammaAbs2 / 90, 1); // 0到1的過渡係數
-                        
-                        // X軸：beta和alpha的混合控制（需要反轉）
-                        const betaX2 = -beta;   // beta控制X軸（反轉）
-                        const alphaX2 = -alpha; // alpha控制X軸（反轉）
-                        x = betaX2 * (1 - transitionFactor2) + alphaX2 * transitionFactor2;
-                        
-                        // Y軸：gamma控制上下
-                        y = gamma;
-                        break;
-                        
-                    default:
-                        // 預設使用直立正向的映射
-                        x = gamma;
-                        y = beta;
+                // 🔧 新增：橫式時的漸變軸向控制
+                if (this.currentOrientation === 'landscape-primary' || this.currentOrientation === 'landscape-secondary') {
+                    // 橫式模式：根據gamma角度漸變beta軸控制
+                    
+                    // 計算gamma的絕對值，用於漸變計算
+                    const gammaAbs = Math.abs(gamma);
+                    const gammaClamped = Math.min(gammaAbs, 90); // 限制在0-90度範圍
+                    
+                    // 計算漸變比例：gamma從0度到90度時，比例從0到1
+                    const transitionRatio = gammaClamped / 90;
+                    
+                    // 漸變beta軸控制：從beta逐漸變為alpha
+                    // 當gamma=0度時，完全使用beta；當gamma=90度時，完全使用alpha
+                    const betaAxis = beta * (1 - transitionRatio) + alpha * transitionRatio;
+                    
+                    if (this.currentOrientation === 'landscape-primary') {
+                        // 橫向正向
+                        x = betaAxis;   // 漸變的beta/alpha軸 → X軸（左右移動）
+                        y = -gamma;     // 左右傾反轉 → Y軸（上下移動）
+                    } else {
+                        // 橫向倒置
+                        x = -betaAxis;  // 漸變的beta/alpha軸反轉 → X軸
+                        y = gamma;      // 左右傾 → Y軸
+                    }
+                } else {
+                    // 直式模式：保持原有邏輯不變
+                    switch (this.currentOrientation) {
+                        case 'portrait-primary':
+                            // 直立正向：gamma控制左右，beta控制上下
+                            x = gamma;  // 左右傾 → X軸（左右移動）
+                            y = beta;   // 前後傾 → Y軸（上下移動）
+                            break;
+                            
+                        case 'portrait-secondary':
+                            // 直立倒置：需要反轉軸向
+                            x = -gamma; // 左右傾反轉 → X軸
+                            y = -beta;  // 前後傾反轉 → Y軸
+                            break;
+                            
+                        default:
+                            // 預設使用直立正向的映射
+                            x = gamma;
+                            y = beta;
+                    }
                 }
                 
                 return { x, y };
@@ -1217,21 +1214,29 @@
                 if (!this.debugCounter) this.debugCounter = 0;
                 this.debugCounter++;
                 if (this.debugCounter % 100 === 0) {
-                    // 🔧 計算過渡係數用於調試顯示
-                    let transitionFactor = 0;
-                    if (this.currentOrientation === 'landscape-primary' || this.currentOrientation === 'landscape-secondary') {
-                        const gammaAbs = Math.abs(gamma);
-                        transitionFactor = Math.min(gammaAbs / 90, 1);
-                    }
-                    
-                    console.log('🎛️ 陀螺儀調試:', {
+                    // 🔧 新增：橫式時的漸變調試信息
+                    let debugInfo = {
                         orientation: this.currentOrientation,
                         raw: { alpha: alpha.toFixed(1), beta: beta.toFixed(1), gamma: gamma.toFixed(1) },
-                        transitionFactor: transitionFactor.toFixed(3),
                         transformed: { x: x.toFixed(1), y: y.toFixed(1) },
                         delta: { deltaX: deltaX.toFixed(3), deltaY: deltaY.toFixed(3) },
                         smoothed: { x: this.smoothedDelta.x.toFixed(3), y: this.smoothedDelta.y.toFixed(3) }
-                    });
+                    };
+                    
+                    // 如果是橫式模式，添加漸變調試信息
+                    if (this.currentOrientation === 'landscape-primary' || this.currentOrientation === 'landscape-secondary') {
+                        const gammaAbs = Math.abs(gamma);
+                        const gammaClamped = Math.min(gammaAbs, 90);
+                        const transitionRatio = gammaClamped / 90;
+                        debugInfo.gradientInfo = {
+                            gammaAbs: gammaAbs.toFixed(1),
+                            gammaClamped: gammaClamped.toFixed(1),
+                            transitionRatio: transitionRatio.toFixed(3),
+                            betaAxis: (beta * (1 - transitionRatio) + alpha * transitionRatio).toFixed(1)
+                        };
+                    }
+                    
+                    console.log('🎛️ 陀螺儀調試:', debugInfo);
                 }
                 
                 // 🔄 儲存最新的原始X/Y值

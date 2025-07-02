@@ -918,9 +918,8 @@
                 // 🎛️ 螢幕方向自動轉換機制
                 this.currentOrientation = this.getScreenOrientation();
                 this.initialOrientation = this.currentOrientation; // 儲存初始方向
-                this.baseAlpha = null;       // α軸基準值（水平旋轉）
-                this.baseBeta = null;        // β軸基準值（前後傾斜）
-                this.baseGamma = null;       // γ軸基準值（左右傾斜）
+                this.baseX = null;           // 統一的X軸基準值
+                this.baseY = null;           // 統一的Y軸基準值
                 this.smoothedDelta = { x: 0, y: 0 }; // 平滑後的差值
                 this.SMOOTH_ALPHA = 0.15;    // 低通濾波係數
                 
@@ -1024,11 +1023,6 @@
                        window.innerWidth <= 768;
             }
 
-            // 🎛️ 計算角度差值（處理360度循環）
-            shortestAngleDiff(a, b) {
-                return ((a - b + 540) % 360) - 180;  // 回到 -180~+180
-            }
-
             // 🎛️ 獲取當前螢幕方向
             getScreenOrientation() {
                 // 優先使用 Screen Orientation API
@@ -1049,38 +1043,61 @@
             }
 
             // 🎛️ 根據螢幕方向轉換陀螺儀數值
-            transformGyroData(dAlpha, dBeta, dGamma) {
+            transformGyroData(alpha, beta, gamma) {
                 let x, y;
                 
                 // 陀螺儀軸向說明：
-                // dAlpha: 水平旋轉差值（-180到+180度）
-                // dBeta: 前後傾斜差值（-180到+180度，前傾為正，後傾為負）
-                // dGamma: 左右傾斜差值（-90到+90度，右傾為正，左傾為負）
+                // alpha: 水平旋轉（0-360度，通常不用於視差）
+                // beta: 前後傾斜（-180到180度，前傾為正，後傾為負）
+                // gamma: 左右傾斜（-90到90度，右傾為正，左傾為負）
                 
                 switch (this.currentOrientation) {
                     case 'portrait-primary':
-                        x = dAlpha;   // α 控制左右旋轉
-                        y = dBeta;    // β 控制上下
+                        // 直立正向：gamma控制左右，beta控制上下
+                        x = gamma;  // 左右傾 → X軸（左右移動）
+                        y = beta;   // 前後傾 → Y軸（上下移動）
                         break;
                         
                     case 'portrait-secondary':
-                        x = -dAlpha;  // 反向
-                        y = -dBeta;
+                        // 直立倒置：需要反轉軸向
+                        x = -gamma; // 左右傾反轉 → X軸
+                        y = -beta;  // 前後傾反轉 → Y軸
                         break;
                         
                     case 'landscape-primary':
-                        x = dAlpha;   // α 仍控制左右
-                        y = -dGamma;  // γ 控制上下 (反向)
+                        // 🔧 橫向正向：根據gamma角度動態調整X軸控制
+                        // gamma從0到90度時，X軸控制從beta逐漸過渡到alpha
+                        const gammaAbs = Math.abs(gamma);
+                        const transitionFactor = Math.min(gammaAbs / 90, 1); // 0到1的過渡係數
+                        
+                        // X軸：beta和alpha的混合控制
+                        const betaX = beta;   // beta控制X軸
+                        const alphaX = alpha; // alpha控制X軸
+                        x = betaX * (1 - transitionFactor) + alphaX * transitionFactor;
+                        
+                        // Y軸：gamma控制上下（方向需要調整）
+                        y = -gamma;
                         break;
                         
                     case 'landscape-secondary':
-                        x = -dAlpha;
-                        y = dGamma;
+                        // 🔧 橫向倒置：根據gamma角度動態調整X軸控制
+                        // gamma從0到90度時，X軸控制從beta逐漸過渡到alpha
+                        const gammaAbs2 = Math.abs(gamma);
+                        const transitionFactor2 = Math.min(gammaAbs2 / 90, 1); // 0到1的過渡係數
+                        
+                        // X軸：beta和alpha的混合控制（需要反轉）
+                        const betaX2 = -beta;   // beta控制X軸（反轉）
+                        const alphaX2 = -alpha; // alpha控制X軸（反轉）
+                        x = betaX2 * (1 - transitionFactor2) + alphaX2 * transitionFactor2;
+                        
+                        // Y軸：gamma控制上下
+                        y = gamma;
                         break;
                         
                     default:
-                        x = dAlpha;
-                        y = dBeta;
+                        // 預設使用直立正向的映射
+                        x = gamma;
+                        y = beta;
                 }
                 
                 return { x, y };
@@ -1156,31 +1173,24 @@
                 const beta = event.beta || 0;
                 const gamma = event.gamma || 0;
 
+                // 根據螢幕方向轉換為統一的X/Y軸
+                const { x, y } = this.transformGyroData(alpha, beta, gamma);
+
                 // 第一次進來時建立基準值
-                if (this.baseAlpha === null) {
-                    this.baseAlpha = alpha;
-                    this.baseBeta = beta;
-                    this.baseGamma = gamma;
-                    console.log('🎛️ 建立陀螺儀基準值:', {
+                if (this.baseX === null) {
+                    this.baseX = x;
+                    this.baseY = y;
+                    console.log('🎛️ 建立統一基準值:', {
                         orientation: this.currentOrientation,
-                        baseAlpha: this.baseAlpha.toFixed(2),
-                        baseBeta: this.baseBeta.toFixed(2),
-                        baseGamma: this.baseGamma.toFixed(2)
+                        baseX: this.baseX.toFixed(2),
+                        baseY: this.baseY.toFixed(2)
                     });
                     return;
                 }
 
                 // 計算差值
-                const dAlpha = this.shortestAngleDiff(alpha, this.baseAlpha);
-                const dBeta = beta - this.baseBeta;
-                const dGamma = gamma - this.baseGamma;
-
-                // 根據螢幕方向轉換為統一的X/Y軸
-                const { x, y } = this.transformGyroData(dAlpha, dBeta, dGamma);
-
-                // 計算標準化偏移（45度對應1.0）
-                let deltaX = x / 45;
-                let deltaY = y / 45;
+                let deltaX = (x - this.baseX) / 45;
+                let deltaY = (y - this.baseY) / 45;
 
                 // 應用靈敏度參數
                 deltaX *= this.GYRO_SENSITIVITY;
@@ -1207,10 +1217,17 @@
                 if (!this.debugCounter) this.debugCounter = 0;
                 this.debugCounter++;
                 if (this.debugCounter % 100 === 0) {
+                    // 🔧 計算過渡係數用於調試顯示
+                    let transitionFactor = 0;
+                    if (this.currentOrientation === 'landscape-primary' || this.currentOrientation === 'landscape-secondary') {
+                        const gammaAbs = Math.abs(gamma);
+                        transitionFactor = Math.min(gammaAbs / 90, 1);
+                    }
+                    
                     console.log('🎛️ 陀螺儀調試:', {
                         orientation: this.currentOrientation,
                         raw: { alpha: alpha.toFixed(1), beta: beta.toFixed(1), gamma: gamma.toFixed(1) },
-                        diff: { dAlpha: dAlpha.toFixed(1), dBeta: dBeta.toFixed(1), dGamma: dGamma.toFixed(1) },
+                        transitionFactor: transitionFactor.toFixed(3),
                         transformed: { x: x.toFixed(1), y: y.toFixed(1) },
                         delta: { deltaX: deltaX.toFixed(3), deltaY: deltaY.toFixed(3) },
                         smoothed: { x: this.smoothedDelta.x.toFixed(3), y: this.smoothedDelta.y.toFixed(3) }
@@ -1602,14 +1619,13 @@
                     if (t < 1) {
                         requestAnimationFrame(animate);
                     } else {
-                        // 1. 在 resetView() 動畫結束區段 **不要**重新賦值基準值，
+                        // 1. 在 resetView() 動畫結束區段 **不要**重新賦值 baseX / baseY，
                         // 而是清空並等待下一筆 gyro 事件自動重建基準：
                         this.currentOffsetX = 0;
                         this.currentOffsetY = 0;
                         this.smoothedDelta = { x: 0, y: 0 };
-                        this.baseAlpha = null;    // 讓下一筆 gyro 決定新基準
-                        this.baseBeta = null;
-                        this.baseGamma = null;
+                        this.baseX = null;        // 讓下一筆 gyro 決定新基準
+                        this.baseY = null;
                         this.isResetting = false;
                         console.log('🔄 視角重置完成');
                     }
@@ -1654,9 +1670,8 @@
                         this.currentOffsetX = 0;
                         this.currentOffsetY = 0;
                         this.smoothedDelta = { x: 0, y: 0 };
-                        this.baseAlpha = null;    // 讓下一筆 gyro 決定新基準
-                        this.baseBeta = null;
-                        this.baseGamma = null;
+                        this.baseX = null;        // 讓下一筆 gyro 決定新基準
+                        this.baseY = null;
                         this.isOrientationTransitioning = false;
                         console.log('🔄 螢幕方向變化過渡完成');
                     }
@@ -1781,11 +1796,6 @@
                     if (newOrientation !== this.currentOrientation) {
                         console.log(`🔄 螢幕方向變化: ${this.currentOrientation} → ${newOrientation}`);
                         this.currentOrientation = newOrientation;
-                        
-                        // 🔧 清空陀螺儀基準值，等待下一筆事件重建
-                        this.baseAlpha = null;
-                        this.baseBeta = null;
-                        this.baseGamma = null;
                         
                         // 🔧 修正：使用平滑過渡而非直接重設基準值
                         this.smoothOrientationTransition();

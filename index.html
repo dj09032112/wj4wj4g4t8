@@ -1578,9 +1578,14 @@
                     const offsetX = THREE.MathUtils.lerp(startX, 0, ease);
                     const offsetY = THREE.MathUtils.lerp(startY, 0, ease);
 
-                    // 3. 在 resetView() 的動畫迴圈內直接呼叫 applyMainParallax()：
-                    // 將平滑後的 offset 立即套上主視差
-                    this.applyMainParallax(offsetX, offsetY);
+                    // 🔧 修正：根據當前視角狀態選擇適當的視差處理方式
+                    if (this.viewState === 'detail' && !this.isTransitioning) {
+                        // 🕹️ 局部圖視角：應用局部視角控制
+                        this.updateDetailViewControl(offsetX, offsetY);
+                    } else {
+                        // 🖼️ 主視角或過渡期間：應用主視差效果
+                        this.applyMainParallax(offsetX, offsetY);
+                    }
 
                     if (t < 1) {
                         requestAnimationFrame(animate);

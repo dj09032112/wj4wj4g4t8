@@ -966,10 +966,7 @@
                 this.isOrientationTransitioning = false;   // 是否正在進行螢幕方向過渡
                 this.lastRawX = 0;                         // 最新的原始X值
                 this.lastRawY = 0;                         // 最新的原始Y值
-                
-                // 🎛️ Alpha軸平滑處理變數
-                this.lastAlpha = undefined;                // 上一次的alpha值
-                this.smoothAlpha = undefined;              // 平滑後的alpha值
+                this.lastAlpha = undefined;                 // 上一次的alpha值，用於處理360度跳轉
 
                 /*
                  * 📖 參數說明：
@@ -1048,7 +1045,7 @@
 
             // 🎛️ 處理alpha軸的360度跳轉問題
             normalizeAlpha(alpha) {
-                // 如果沒有儲存過alpha值，直接返回
+                // 如果沒有上一次的alpha值，直接返回
                 if (this.lastAlpha === undefined) {
                     this.lastAlpha = alpha;
                     return alpha;
@@ -1059,18 +1056,18 @@
                 
                 // 處理360度跳轉
                 if (delta > 180) {
-                    // 從359度跳到0度
+                    // 從360跳到0的情況
                     delta -= 360;
                 } else if (delta < -180) {
-                    // 從0度跳到359度
+                    // 從0跳到360的情況
                     delta += 360;
                 }
                 
-                // 更新平滑的alpha值
-                this.smoothAlpha = (this.smoothAlpha || this.lastAlpha) + delta;
-                this.lastAlpha = alpha;
+                // 更新平滑後的alpha值
+                const normalizedAlpha = this.lastAlpha + delta;
+                this.lastAlpha = normalizedAlpha;
                 
-                return this.smoothAlpha;
+                return normalizedAlpha;
             }
 
             // 🎛️ 根據螢幕方向轉換陀螺儀數值
@@ -1096,24 +1093,28 @@
                         break;
                         
                     case 'landscape-primary':
-                        // 🔧 橫向正向：gamma從0到90度時，X軸從beta逐漸過渡到alpha
+                        // 🔧 橫向正向：實現gamma到alpha的平滑過渡
                         const normalizedAlpha = this.normalizeAlpha(alpha);
-                        const gammaRatio = Math.abs(gamma) / 90; // gamma的絕對值比例
-                        const alphaRatio = Math.min(gammaRatio, 1); // 限制在0-1範圍
                         
-                        // X軸：beta和alpha的混合控制
-                        x = beta * (1 - alphaRatio) + normalizedAlpha * alphaRatio;
+                        // 計算gamma的絕對值，用於決定過渡比例
+                        const gammaAbs = Math.abs(gamma);
+                        const transitionRatio = Math.min(gammaAbs / 90, 1); // 0到1的過渡比例
+                        
+                        // gamma控制上下，beta和alpha混合控制左右
+                        x = beta * (1 - transitionRatio) + normalizedAlpha * transitionRatio; // 前後傾 + 水平旋轉混合
                         y = -gamma; // 左右傾反轉 → Y軸（上下移動）
                         break;
                         
                     case 'landscape-secondary':
-                        // 🔧 橫向倒置：gamma從0到90度時，X軸從-beta逐漸過渡到-alpha
+                        // 🔧 橫向倒置：實現gamma到alpha的平滑過渡
                         const normalizedAlpha2 = this.normalizeAlpha(alpha);
-                        const gammaRatio2 = Math.abs(gamma) / 90; // gamma的絕對值比例
-                        const alphaRatio2 = Math.min(gammaRatio2, 1); // 限制在0-1範圍
                         
-                        // X軸：-beta和-alpha的混合控制
-                        x = (-beta) * (1 - alphaRatio2) + (-normalizedAlpha2) * alphaRatio2;
+                        // 計算gamma的絕對值，用於決定過渡比例
+                        const gammaAbs2 = Math.abs(gamma);
+                        const transitionRatio2 = Math.min(gammaAbs2 / 90, 1); // 0到1的過渡比例
+                        
+                        // gamma控制上下，beta和alpha混合控制左右（反轉）
+                        x = -beta * (1 - transitionRatio2) - normalizedAlpha2 * transitionRatio2; // 前後傾反轉 + 水平旋轉反轉混合
                         y = gamma;  // 左右傾 → Y軸
                         break;
                         
@@ -1641,9 +1642,7 @@
                         this.smoothedDelta = { x: 0, y: 0 };
                         this.baseX = null;        // 讓下一筆 gyro 決定新基準
                         this.baseY = null;
-                        // 🎛️ 重置alpha軸平滑處理變數
-                        this.lastAlpha = undefined;
-                        this.smoothAlpha = undefined;
+                        this.lastAlpha = undefined; // 重置alpha追蹤，讓新基準重新開始
                         this.isResetting = false;
                         console.log('🔄 視角重置完成');
                     }
@@ -1690,9 +1689,7 @@
                         this.smoothedDelta = { x: 0, y: 0 };
                         this.baseX = null;        // 讓下一筆 gyro 決定新基準
                         this.baseY = null;
-                        // 🎛️ 重置alpha軸平滑處理變數
-                        this.lastAlpha = undefined;
-                        this.smoothAlpha = undefined;
+                        this.lastAlpha = undefined; // 重置alpha追蹤，讓新方向重新開始
                         this.isOrientationTransitioning = false;
                         console.log('🔄 螢幕方向變化過渡完成');
                     }

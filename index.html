@@ -1036,7 +1036,7 @@
                 }
             }
 
-            // 🎛️ 根據螢幕方向轉換陀螺儀數值
+            // 🎛️ 根據螢幕方向和傾斜角度轉換陀螺儀數值
             transformGyroData(alpha, beta, gamma) {
                 let x, y;
                 
@@ -1045,29 +1045,57 @@
                 // beta: 前後傾斜（-180到180度，前傾為正，後傾為負）
                 // gamma: 左右傾斜（-90到90度，右傾為正，左傾為負）
                 
+                // 🔧 新增：計算手機的傾斜角度
+                const tiltAngle = Math.abs(beta);
+                const isNearVertical = tiltAngle > 45; // 當beta角度大於45度時，認為手機接近直立
+                
                 switch (this.currentOrientation) {
                     case 'portrait-primary':
-                        // 直立正向：gamma控制左右，beta控制上下
-                        x = gamma;  // 左右傾 → X軸（左右移動）
-                        y = beta;   // 前後傾 → Y軸（上下移動）
+                        if (isNearVertical) {
+                            // 🔧 手機接近直立時：優先使用gamma軸控制左右旋轉
+                            x = gamma;  // 左右傾 → X軸（左右移動）
+                            y = beta;   // 前後傾 → Y軸（上下移動）
+                        } else {
+                            // 手機平放時：使用原本的映射
+                            x = gamma;  // 左右傾 → X軸（左右移動）
+                            y = beta;   // 前後傾 → Y軸（上下移動）
+                        }
                         break;
                         
                     case 'portrait-secondary':
-                        // 直立倒置：需要反轉軸向
-                        x = -gamma; // 左右傾反轉 → X軸
-                        y = -beta;  // 前後傾反轉 → Y軸
+                        if (isNearVertical) {
+                            // 🔧 手機接近直立時：優先使用gamma軸控制左右旋轉
+                            x = -gamma; // 左右傾反轉 → X軸
+                            y = -beta;  // 前後傾反轉 → Y軸
+                        } else {
+                            // 手機平放時：使用原本的映射
+                            x = -gamma; // 左右傾反轉 → X軸
+                            y = -beta;  // 前後傾反轉 → Y軸
+                        }
                         break;
                         
                     case 'landscape-primary':
-                        // 橫向正向：beta控制左右，gamma控制上下（但方向需要調整）
-                        x = beta;   // 前後傾 → X軸（左右移動）
-                        y = -gamma; // 左右傾反轉 → Y軸（上下移動）
+                        if (isNearVertical) {
+                            // 🔧 手機接近直立時：優先使用gamma軸控制左右旋轉
+                            x = gamma;  // 左右傾 → X軸（左右移動）
+                            y = -beta;  // 前後傾反轉 → Y軸（上下移動）
+                        } else {
+                            // 手機平放時：使用原本的映射
+                            x = beta;   // 前後傾 → X軸（左右移動）
+                            y = -gamma; // 左右傾反轉 → Y軸（上下移動）
+                        }
                         break;
                         
                     case 'landscape-secondary':
-                        // 橫向倒置：需要反轉軸向
-                        x = -beta;  // 前後傾反轉 → X軸
-                        y = gamma;  // 左右傾 → Y軸
+                        if (isNearVertical) {
+                            // 🔧 手機接近直立時：優先使用gamma軸控制左右旋轉
+                            x = -gamma; // 左右傾反轉 → X軸
+                            y = beta;   // 前後傾 → Y軸
+                        } else {
+                            // 手機平放時：使用原本的映射
+                            x = -beta;  // 前後傾反轉 → X軸
+                            y = gamma;  // 左右傾 → Y軸
+                        }
                         break;
                         
                     default:
@@ -1196,8 +1224,12 @@
                 if (!this.debugCounter) this.debugCounter = 0;
                 this.debugCounter++;
                 if (this.debugCounter % 100 === 0) {
+                    const tiltAngle = Math.abs(beta);
+                    const isNearVertical = tiltAngle > 45;
                     console.log('🎛️ 陀螺儀調試:', {
                         orientation: this.currentOrientation,
+                        tiltAngle: tiltAngle.toFixed(1) + '°',
+                        isNearVertical: isNearVertical ? '直立模式' : '平放模式',
                         raw: { alpha: alpha.toFixed(1), beta: beta.toFixed(1), gamma: gamma.toFixed(1) },
                         transformed: { x: x.toFixed(1), y: y.toFixed(1) },
                         delta: { deltaX: deltaX.toFixed(3), deltaY: deltaY.toFixed(3) },

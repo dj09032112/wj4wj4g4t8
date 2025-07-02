@@ -947,7 +947,6 @@
                 // 📱 行動裝置陀螺儀控制
                 this.GYRO_SENSITIVITY = 5.0;    // 陀螺儀靈敏度：控制裝置傾斜的敏感程度 (建議範圍: 0.5-2.0)
                 this.GYRO_INVERT_X = true;       // 是否反轉X軸 (左右傾斜)：true=裝置左傾時畫面右移
-                this.GYRO_ALPHA_WEIGHT = 0.3;    // alpha軸在橫式時的權重 (建議範圍: 0.1-0.5)
                 
                 // 🖼️ 統一圖片大小控制
                 this.IMAGE_SCALE = 1.02;        // 圖片縮放比例：控制封面圖和主圖的大小 (建議範圍: 0.5-1.5)
@@ -967,6 +966,7 @@
                 this.isOrientationTransitioning = false;   // 是否正在進行螢幕方向過渡
                 this.lastRawX = 0;                         // 最新的原始X值
                 this.lastRawY = 0;                         // 最新的原始Y值
+                this.lastAlpha = undefined;                 // 上一次的alpha值（用於平滑過渡）
 
                 /*
                  * 📖 參數說明：
@@ -991,17 +991,11 @@
                  * - true：裝置左傾時畫面向右移動（更直觀）
                  * - false：裝置左傾時畫面向左移動
                  * 
-                 * GYRO_ALPHA_WEIGHT：
-                 * - 控制橫式時alpha軸（水平旋轉）對X軸的影響程度
-                 * - 數值越大，水平旋轉對左右移動的影響越明顯
-                 * - 僅在橫式時生效，直式時不使用alpha軸
-                 * 
                  * 🎯 調整建議：
                  * - 想要更敏感的滑鼠控制 → 增加 PARALLAX_INTENSITY
                  * - 想要更敏感的陀螺儀控制 → 增加 GYRO_SENSITIVITY
                  * - 想要更強烈的深度效果 → 增加 DEPTH_SENSITIVITY  
                  * - 想要更細膩的效果 → 同時降低所有數值
-                 * - 想要橫式時更敏感的水平旋轉控制 → 增加 GYRO_ALPHA_WEIGHT
                  */
                 
                 // 圖層資訊 - 按照從後到前的順序（7最後面，1最前面）
@@ -1049,6 +1043,28 @@
                 }
             }
 
+            // 🎛️ 處理alpha角度平滑過渡（0-360度）
+            normalizeAlpha(alpha) {
+                // 確保alpha在0-360度範圍內
+                let normalizedAlpha = alpha % 360;
+                if (normalizedAlpha < 0) normalizedAlpha += 360;
+                
+                // 處理0-360度邊界跳動問題
+                if (this.lastAlpha !== undefined) {
+                    const diff = normalizedAlpha - this.lastAlpha;
+                    
+                    // 如果差值超過180度，說明跨越了0-360邊界
+                    if (diff > 180) {
+                        normalizedAlpha -= 360;
+                    } else if (diff < -180) {
+                        normalizedAlpha += 360;
+                    }
+                }
+                
+                this.lastAlpha = normalizedAlpha;
+                return normalizedAlpha;
+            }
+
             // 🎛️ 根據螢幕方向轉換陀螺儀數值
             transformGyroData(alpha, beta, gamma) {
                 let x, y;
@@ -1057,6 +1073,9 @@
                 // alpha: 水平旋轉（0-360度，通常不用於視差）
                 // beta: 前後傾斜（-180到180度，前傾為正，後傾為負）
                 // gamma: 左右傾斜（-90到90度，右傾為正，左傾為負）
+                
+                // 🔧 處理alpha的平滑過渡
+                const normalizedAlpha = this.normalizeAlpha(alpha);
                 
                 switch (this.currentOrientation) {
                     case 'portrait-primary':
@@ -1072,14 +1091,24 @@
                         break;
                         
                     case 'landscape-primary':
-                        // 橫向正向：beta控制左右，gamma控制上下，alpha加入X軸控制
-                        x = beta + (alpha * this.GYRO_ALPHA_WEIGHT);   // 前後傾 + alpha水平旋轉 → X軸（左右移動）
-                        y = -gamma; // 左右傾反轉 → Y軸（上下移動）
+                        // 🔧 橫向正向：根據gamma角度動態混合beta和alpha
+                        const gammaRatio = Math.max(0, Math.min(1, (gamma + 90) / 180)); // 將-90到90映射到0到1
+                        const betaWeight = 1 - gammaRatio;
+                        const alphaWeight = gammaRatio;
+                        
+                        // 混合beta和alpha控制X軸
+                        x = beta * betaWeight + normalizedAlpha * alphaWeight * 0.1; // alpha縮放0.1倍避免過度敏感
+                        y = -gamma; // 左右傾反轉 → Y軸
                         break;
                         
                     case 'landscape-secondary':
-                        // 橫向倒置：需要反轉軸向，alpha加入X軸控制
-                        x = -beta - (alpha * this.GYRO_ALPHA_WEIGHT);  // 前後傾反轉 + alpha水平旋轉反轉 → X軸
+                        // 🔧 橫向倒置：根據gamma角度動態混合beta和alpha
+                        const gammaRatio2 = Math.max(0, Math.min(1, (gamma + 90) / 180));
+                        const betaWeight2 = 1 - gammaRatio2;
+                        const alphaWeight2 = gammaRatio2;
+                        
+                        // 混合beta和alpha控制X軸（反轉）
+                        x = -(beta * betaWeight2 + normalizedAlpha * alphaWeight2 * 0.1);
                         y = gamma;  // 左右傾 → Y軸
                         break;
                         
@@ -1088,9 +1117,6 @@
                         x = gamma;
                         y = beta;
                 }
-                
-                // 🔧 移除初始橫向補償，因為已經在switch中處理了
-                // 這個補償會導致重複的軸向轉換
                 
                 return { x, y };
             }
@@ -1212,6 +1238,7 @@
                     console.log('🎛️ 陀螺儀調試:', {
                         orientation: this.currentOrientation,
                         raw: { alpha: alpha.toFixed(1), beta: beta.toFixed(1), gamma: gamma.toFixed(1) },
+                        normalizedAlpha: this.lastAlpha ? this.lastAlpha.toFixed(1) : 'undefined',
                         transformed: { x: x.toFixed(1), y: y.toFixed(1) },
                         delta: { deltaX: deltaX.toFixed(3), deltaY: deltaY.toFixed(3) },
                         smoothed: { x: this.smoothedDelta.x.toFixed(3), y: this.smoothedDelta.y.toFixed(3) }

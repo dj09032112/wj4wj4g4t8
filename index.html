@@ -824,12 +824,14 @@
         <button id="reset-view-button" onclick="handleResetViewButton()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <!-- 外圈圓形 -->
-                <circle cx="12" cy="12" r="10"/>
-                <!-- 中心十字準星 -->
-                <line x1="12" y1="8" x2="12" y2="16"/>
-                <line x1="8" y1="12" x2="16" y2="12"/>
+                <circle cx="12" cy="12" r="9"/>
                 <!-- 中心點 -->
-                <circle cx="12" cy="12" r="1" fill="currentColor"/>
+                <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                <!-- 四個方向的箭頭指向中心 -->
+                <path d="M12 3v3"/>
+                <path d="M12 18v3"/>
+                <path d="M3 12h3"/>
+                <path d="M18 12h3"/>
             </svg>
         </button>
 

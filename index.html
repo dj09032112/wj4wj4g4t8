@@ -918,6 +918,9 @@
                 // 🎛️ 螢幕方向自動轉換機制
                 this.currentOrientation = this.getScreenOrientation();
                 this.initialOrientation = this.currentOrientation; // 儲存初始方向
+                this.baseX = null;           // 統一的X軸基準值
+                this.baseY = null;           // 統一的Y軸基準值
+                this.smoothedDelta = { x: 0, y: 0 }; // 平滑後的差值
                 this.SMOOTH_ALPHA = 0.15;    // 低通濾波係數
                 
                 // 🎮 混合控制系統
@@ -961,6 +964,8 @@
                 // 🔄 重置視角功能
                 this.isResetting = false;                  // 是否正在重置視角
                 this.isOrientationTransitioning = false;   // 是否正在進行螢幕方向過渡
+                this.lastRawX = 0;                         // 最新的原始X值
+                this.lastRawY = 0;                         // 最新的原始Y值
 
                 /*
                  * 📖 參數說明：
@@ -1037,7 +1042,51 @@
                 }
             }
 
-
+            // 🎛️ 根據螢幕方向轉換陀螺儀數值
+            transformGyroData(alpha, beta, gamma) {
+                let x, y;
+                
+                // 陀螺儀軸向說明：
+                // alpha: 水平旋轉（0-360度，通常不用於視差）
+                // beta: 前後傾斜（-180到180度，前傾為正，後傾為負）
+                // gamma: 左右傾斜（-90到90度，右傾為正，左傾為負）
+                
+                switch (this.currentOrientation) {
+                    case 'portrait-primary':
+                        // 直立正向：gamma控制左右，beta控制上下
+                        x = gamma;  // 左右傾 → X軸（左右移動）
+                        y = beta;   // 前後傾 → Y軸（上下移動）
+                        break;
+                        
+                    case 'portrait-secondary':
+                        // 直立倒置：需要反轉軸向
+                        x = -gamma; // 左右傾反轉 → X軸
+                        y = -beta;  // 前後傾反轉 → Y軸
+                        break;
+                        
+                    case 'landscape-primary':
+                        // 橫向正向：beta控制左右，gamma控制上下（但方向需要調整）
+                        x = beta;   // 前後傾 → X軸（左右移動）
+                        y = -gamma; // 左右傾反轉 → Y軸（上下移動）
+                        break;
+                        
+                    case 'landscape-secondary':
+                        // 橫向倒置：需要反轉軸向
+                        x = -beta;  // 前後傾反轉 → X軸
+                        y = gamma;  // 左右傾 → Y軸
+                        break;
+                        
+                    default:
+                        // 預設使用直立正向的映射
+                        x = gamma;
+                        y = beta;
+                }
+                
+                // 🔧 移除初始橫向補償，因為已經在switch中處理了
+                // 這個補償會導致重複的軸向轉換
+                
+                return { x, y };
+            }
 
             // 🎮 檢測是否需要iOS授權
             checkPermissionRequired() {
@@ -1109,52 +1158,62 @@
                 const beta = event.beta || 0;
                 const gamma = event.gamma || 0;
 
-                // 四元數轉換＋世界軸補償
-                const q = new THREE.Quaternion().setFromEuler(
-                    new THREE.Euler(
-                        beta  * THREE.MathUtils.DEG2RAD,
-                        alpha * THREE.MathUtils.DEG2RAD,
-                        -gamma * THREE.MathUtils.DEG2RAD,
-                        'ZXY'
-                    )
-                );
-                const forward = new THREE.Vector3(0,0,-1).applyQuaternion(q);
-                forward.y = 0;
-                forward.normalize();
-                const angle = Math.atan2(forward.x, forward.z);      // -π ~ +π
-                const deltaX = THREE.MathUtils.clamp(angle / Math.PI, -1, 1);
+                // 根據螢幕方向轉換為統一的X/Y軸
+                const { x, y } = this.transformGyroData(alpha, beta, gamma);
+
+                // 第一次進來時建立基準值
+                if (this.baseX === null) {
+                    this.baseX = x;
+                    this.baseY = y;
+                    console.log('🎛️ 建立統一基準值:', {
+                        orientation: this.currentOrientation,
+                        baseX: this.baseX.toFixed(2),
+                        baseY: this.baseY.toFixed(2)
+                    });
+                    return;
+                }
+
+                // 計算差值
+                let deltaX = (x - this.baseX) / 45;
+                let deltaY = (y - this.baseY) / 45;
 
                 // 應用靈敏度參數
-                const adjustedDeltaX = deltaX * this.GYRO_SENSITIVITY;
+                deltaX *= this.GYRO_SENSITIVITY;
+                deltaY *= this.GYRO_SENSITIVITY;
 
                 // 限制範圍
-                const clampedDeltaX = THREE.MathUtils.clamp(adjustedDeltaX, -1, 1);
+                deltaX = THREE.MathUtils.clamp(deltaX, -1, 1);
+                deltaY = THREE.MathUtils.clamp(deltaY, -1, 1);
 
                 // 應用左右反轉設定
-                const finalDeltaX = this.GYRO_INVERT_X ? -clampedDeltaX : clampedDeltaX;
-
-                // 簡單 lerp 平滑處理
-                if (this.lastDeltaX === undefined) {
-                    this.lastDeltaX = finalDeltaX;
+                if (this.GYRO_INVERT_X) {
+                    deltaX = -deltaX;
                 }
-                const smoothedDeltaX = THREE.MathUtils.lerp(this.lastDeltaX, finalDeltaX, this.SMOOTH_ALPHA);
-                this.lastDeltaX = smoothedDeltaX;
+
+                // 低通濾波平滑處理
+                this.smoothedDelta.x = this.smoothedDelta.x * (1 - this.SMOOTH_ALPHA) + deltaX * this.SMOOTH_ALPHA;
+                this.smoothedDelta.y = this.smoothedDelta.y * (1 - this.SMOOTH_ALPHA) + deltaY * this.SMOOTH_ALPHA;
 
                 // 更新當前偏移值
-                this.currentOffsetX = smoothedDeltaX;
-                this.currentOffsetY = 0;  // 先關掉上下視差
+                this.currentOffsetX = this.smoothedDelta.x;
+                this.currentOffsetY = this.smoothedDelta.y;
                 
                 // 🔍 調試資訊：每100次輸出一次，避免過多日誌
                 if (!this.debugCounter) this.debugCounter = 0;
                 this.debugCounter++;
                 if (this.debugCounter % 100 === 0) {
                     console.log('🎛️ 陀螺儀調試:', {
+                        orientation: this.currentOrientation,
                         raw: { alpha: alpha.toFixed(1), beta: beta.toFixed(1), gamma: gamma.toFixed(1) },
-                        angle: (angle * THREE.MathUtils.RAD2DEG).toFixed(1),
-                        delta: { deltaX: deltaX.toFixed(3), finalDeltaX: finalDeltaX.toFixed(3) },
-                        smoothed: { x: smoothedDeltaX.toFixed(3), y: 0 }
+                        transformed: { x: x.toFixed(1), y: y.toFixed(1) },
+                        delta: { deltaX: deltaX.toFixed(3), deltaY: deltaY.toFixed(3) },
+                        smoothed: { x: this.smoothedDelta.x.toFixed(3), y: this.smoothedDelta.y.toFixed(3) }
                     });
                 }
+                
+                // 🔄 儲存最新的原始X/Y值
+                this.lastRawX = x;
+                this.lastRawY = y;
             }
 
             // 🎮 滑鼠更新
@@ -1513,9 +1572,9 @@
                 this.isResetting = true;  // 保留
                 // 不設 this.parallaxFreeze
                 
-                // 取目前 currentOffset 當作 offset 起點
-                const startX = this.currentOffsetX;
-                const startY = this.currentOffsetY;
+                // 取目前 smoothedDelta 當作 offset 起點
+                const startX = this.smoothedDelta.x;
+                const startY = this.smoothedDelta.y;
                 const duration = 400; // ms
                 const startTime = performance.now();
                 
@@ -1537,10 +1596,13 @@
                     if (t < 1) {
                         requestAnimationFrame(animate);
                     } else {
-                        // 重置完成
+                        // 1. 在 resetView() 動畫結束區段 **不要**重新賦值 baseX / baseY，
+                        // 而是清空並等待下一筆 gyro 事件自動重建基準：
                         this.currentOffsetX = 0;
                         this.currentOffsetY = 0;
-                        this.lastDeltaX = 0;
+                        this.smoothedDelta = { x: 0, y: 0 };
+                        this.baseX = null;        // 讓下一筆 gyro 決定新基準
+                        this.baseY = null;
                         this.isResetting = false;
                         console.log('🔄 視角重置完成');
                     }
@@ -1557,9 +1619,9 @@
                 // 設定方向過渡標誌
                 this.isOrientationTransitioning = true;
                 
-                // 取目前 currentOffset 當作 offset 起點
-                const startX = this.currentOffsetX;
-                const startY = this.currentOffsetY;
+                // 取目前 smoothedDelta 當作 offset 起點
+                const startX = this.smoothedDelta.x;
+                const startY = this.smoothedDelta.y;
                 const duration = 300; // ms，比重置視角稍短
                 const startTime = performance.now();
                 
@@ -1581,10 +1643,12 @@
                     if (t < 1) {
                         requestAnimationFrame(animate);
                     } else {
-                        // 動畫完成後，清空偏移值
+                        // 動畫完成後，清空基準值並等待下一筆陀螺儀事件重建基準
                         this.currentOffsetX = 0;
                         this.currentOffsetY = 0;
-                        this.lastDeltaX = 0;
+                        this.smoothedDelta = { x: 0, y: 0 };
+                        this.baseX = null;        // 讓下一筆 gyro 決定新基準
+                        this.baseY = null;
                         this.isOrientationTransitioning = false;
                         console.log('🔄 螢幕方向變化過渡完成');
                     }
@@ -1710,6 +1774,9 @@
                         console.log(`🔄 螢幕方向變化: ${this.currentOrientation} → ${newOrientation}`);
                         this.currentOrientation = newOrientation;
                         
+                        // 🔧 修正：使用平滑過渡而非直接重設基準值
+                        this.smoothOrientationTransition();
+                        
                         // 📱 修正：螢幕方向變化時強制重新計算容器大小
                         // 延遲執行，確保瀏覽器完成方向變化
                         setTimeout(() => {
@@ -1734,6 +1801,7 @@
                             // 同時調整載入場景
                             if (this.loadingCamera && this.loadingRenderer) {
                                 this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                                this.loadingCamera.updateProjectionMatrix();
                                 this.loadingRenderer.setPixelRatio(pixelRatio);
                                 this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
                                 

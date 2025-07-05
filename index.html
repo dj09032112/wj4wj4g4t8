@@ -2470,6 +2470,9 @@
                 this.viewState = 'detail';
                 this.currentDetailDot = clickedDot;
                 
+                // 停止提示動畫（局部視角時不需要提示）
+                this.stopHintAnimationCycle();
+                
                 // 🕹️ 重置局部視角控制
                 this.resetDetailViewControl();
                 
@@ -2777,6 +2780,14 @@
                         this.currentDetailDot = null;
                         this.isTransitioning = false;
                         
+                        // 重新啟動提示動畫（如果還有未點擊的點點）
+                        const unclickedDots = this.interactiveDots.filter(dotData => !dotData.hasBeenClicked);
+                        if (unclickedDots.length > 0) {
+                            setTimeout(() => {
+                                this.startHintAnimationCycle();
+                            }, 500);
+                        }
+                        
                         console.log('🔄 返回主視角動畫完成');
                     }
                 };
@@ -2989,11 +3000,24 @@
                     { id: 'dot3', x: 0.71, y: 0.628, depth: 0.65 }
                 ];
 
-                // 為每個點創建網格
+                // 初始化提示動畫相關變數
+                this.dotHints = []; // 提示圓形陣列
+                this.hintAnimationState = {
+                    isActive: false,
+                    currentCycle: 0,
+                    lastCycleTime: 0,
+                    cycleInterval: 3000, // 循環間隔 3 秒
+                    hasClickedAny: false // 是否有任何點點被點擊過
+                };
+
+                // 為每個點創建網格和提示
                 dotsConfig.forEach((config, index) => {
                     const dot = this.createDotMesh(config);
+                    const hint = this.createDotHint(config);
+                    
                     this.interactiveDots.push({
                         mesh: dot,
+                        hint: hint, // 添加提示引用
                         config: config,
                         originalPosition: { x: config.x, y: config.y },
                         basePosition: { x: 0, y: 0 }, // 基礎位置（不含視差）
@@ -3007,13 +3031,30 @@
                         distanceScale: this.DISTANCE_INTERACTION_ENABLED ? this.MIN_SCALE_FACTOR : 1.0,      // 基於距離的縮放係數
                         distanceOpacity: this.DISTANCE_INTERACTION_ENABLED ? this.MIN_OPACITY_FACTOR : 1.0,   // 基於距離的透明度係數
                         // 🌫️ 過渡動畫相關
-                        transitionOpacity: 1.0  // 過渡動畫透明度乘數 (放大縮小時的淡出淡入)
+                        transitionOpacity: 1.0,  // 過渡動畫透明度乘數 (放大縮小時的淡出淡入)
+                        // 提示相關
+                        hasBeenClicked: false,    // 是否已被點擊過
+                        hintAnimation: {
+                            isActive: false,
+                            startTime: 0,
+                            scale: 1.0,
+                            opacity: 0.0
+                        }
                     });
+                    
                     this.dotsGroup.add(dot);
+                    this.dotsGroup.add(hint); // 將提示添加到場景中
+                    this.dotHints.push(hint);
                 });
 
                 // 設定點點容器的渲染順序
                 this.dotsGroup.renderOrder = 1; // 比主圖層組(0)高，比載入層低
+                
+                // 確保提示圓形在點點下層但可見
+                this.dotHints.forEach(hint => {
+                    hint.renderOrder = 0; // 在點點下層
+                    hint.material.depthWrite = false; // 避免深度寫入問題
+                });
                 
                 // 初始化點點布局
                 this.updateInteractiveDotsLayout();
@@ -3021,7 +3062,9 @@
                 // 設定點擊事件
                 this.setupDotInteractions();
                 
-                console.log(`✅ 成功創建 ${this.interactiveDots.length} 個互動點點`);
+
+                
+                console.log(`✅ 成功創建 ${this.interactiveDots.length} 個互動點點和提示`);
             }
 
             createDotMesh(config) {
@@ -3131,6 +3174,76 @@
                 return mesh;
             }
 
+            // 創建點點提示圓形
+            createDotHint(config) {
+                // 創建白色半透明漸層圓形提示
+                const canvas = document.createElement('canvas');
+                const size = 256; // 較大的畫布以容納漸層效果
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                
+                const centerX = size / 2;
+                const centerY = size / 2;
+                const radius = size * 0.4; // 提示圓形大小
+                
+                // 清除畫布
+                ctx.clearRect(0, 0, size, size);
+                
+                // 創建從中心向外漸變的白色半透明圓形
+                const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');   // 中心 0.6 透明度
+                gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.4)'); // 漸變
+                gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.3)'); // 更淡
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0.2)');   // 邊緣 0.2 透明度
+                
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // 創建紋理
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.needsUpdate = true;
+                
+                // 創建材質
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    opacity: 0,  // 初始為透明
+                    blending: THREE.NormalBlending,
+                    depthWrite: false,  // 避免深度寫入問題
+                    depthTest: true     // 啟用深度測試
+                });
+                
+                // 計算提示大小 - 比點點大一些
+                let hintSize;
+                if (this.layers.length > 0 && this.layers[0].userData.mainTexture) {
+                    const { width, height } = this.calculateImageSize(this.layers[0].userData.mainTexture);
+                    hintSize = Math.min(width, height) * 0.08; // 比點點大 1.6 倍
+                } else {
+                    hintSize = 0.5;
+                }
+                
+                // 創建幾何體
+                const geometry = new THREE.PlaneGeometry(hintSize, hintSize);
+                
+                // 創建網格
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.userData = {
+                    isDotHint: true,
+                    dotId: config.id,
+                    baseSize: hintSize,
+                    isAnimating: false
+                };
+                
+                // 確保初始狀態完全透明且縮放為0
+                mesh.material.opacity = 0;
+                mesh.scale.set(0, 0, 1);
+                
+                return mesh;
+            }
+
             updateInteractiveDotsLayout() {
                 if (!this.layers.length || !this.interactiveDots.length) return;
                 
@@ -3155,6 +3268,17 @@
                     dotData.mesh.position.y = y;
                     dotData.mesh.position.z = 0.1; // 確保在主圖層之上
                     
+                    // 更新提示位置（與點點相同位置，但在點點下層）
+                    if (dotData.hint) {
+                        dotData.hint.position.x = x;
+                        dotData.hint.position.y = y;
+                        dotData.hint.position.z = 0.09; // 在主圖層之上，點點下層
+                        
+                        // 確保提示圓形保持初始狀態（透明且縮放為0）
+                        dotData.hint.material.opacity = 0;
+                        dotData.hint.scale.set(0, 0, 1);
+                    }
+                    
                     // 重新計算點點大小
                     const dotSize = Math.min(width, height) * 0.028;
                     dotData.mesh.userData.baseSize = dotSize;
@@ -3162,16 +3286,24 @@
                     // 更新幾何體大小
                     dotData.mesh.geometry.dispose();
                     dotData.mesh.geometry = new THREE.PlaneGeometry(dotSize, dotSize);
+                    
+                    // 更新提示大小
+                    if (dotData.hint) {
+                        const hintSize = Math.min(width, height) * 0.045; // 比點點大 1.6 倍
+                        dotData.hint.userData.baseSize = hintSize;
+                        dotData.hint.geometry.dispose();
+                        dotData.hint.geometry = new THREE.PlaneGeometry(hintSize, hintSize);
+                    }
                 });
                 
-                console.log('🔴 互動點點布局已更新');
+                console.log('🔴 互動點點和提示布局已更新');
             }
 
             updateInteractiveDotsParallax(inputX, inputY) {
                 if (!this.interactiveDots.length) return;
                 
                 this.interactiveDots.forEach(dotData => {
-                    const { mesh, basePosition, config } = dotData;
+                    const { mesh, hint, basePosition, config } = dotData;
                     
                     // 根據點的深度值計算視差偏移
                     const depthOffset = (config.depth - 0.625); // 與 shader 中相同的基準點
@@ -3181,6 +3313,12 @@
                     // 應用視差偏移到基礎位置
                     mesh.position.x = basePosition.x + parallaxX;
                     mesh.position.y = basePosition.y + parallaxY;
+                    
+                    // 同時更新提示的視差效果
+                    if (hint) {
+                        hint.position.x = basePosition.x + parallaxX;
+                        hint.position.y = basePosition.y + parallaxY;
+                    }
                 });
             }
 
@@ -3287,6 +3425,10 @@
                     // 如果有點點被點擊，放大到局部視角
                     if (clickedDot) {
                         console.log(`🎯 放大到局部視角: ${clickedDot.config.id}`);
+                        
+                        // 標記點點為已點擊
+                        this.markDotAsClicked(clickedDot.config.id);
+                        
                         this.zoomToDetailView(clickedDot);
                     }
                 }
@@ -3459,6 +3601,177 @@
                 animate();
             }
 
+            // 💡 ================== 點點提示動畫系統 ==================
+
+            // 開始提示動畫循環
+            startHintAnimationCycle() {
+                if (this.hintAnimationState.isActive) return;
+                
+                this.hintAnimationState.isActive = true;
+                this.hintAnimationState.currentCycle = 0;
+                this.hintAnimationState.lastCycleTime = Date.now();
+                
+                console.log('💡 開始點點提示動畫循環');
+                this.scheduleNextHintCycle();
+            }
+
+            // 停止提示動畫循環
+            stopHintAnimationCycle() {
+                this.hintAnimationState.isActive = false;
+                
+                // 停止所有正在進行的提示動畫
+                this.interactiveDots.forEach(dotData => {
+                    if (dotData.hintAnimation.isActive) {
+                        dotData.hintAnimation.isActive = false;
+                        dotData.hint.material.opacity = 0;
+                    }
+                });
+                
+                console.log('💡 停止點點提示動畫循環');
+            }
+
+            // 安排下一個提示循環
+            scheduleNextHintCycle() {
+                if (!this.hintAnimationState.isActive) return;
+                
+                const now = Date.now();
+                this.hintAnimationState.lastCycleTime = now;
+                this.hintAnimationState.currentCycle++;
+                
+                // 開始播放提示序列
+                this.playHintSequence();
+            }
+
+            // 播放提示序列
+            playHintSequence() {
+                if (!this.hintAnimationState.isActive) return;
+                
+                // 獲取未點擊的點點
+                const unclickedDots = this.interactiveDots.filter(dotData => !dotData.hasBeenClicked);
+                
+                if (unclickedDots.length === 0) {
+                    // 所有點點都被點擊過，停止動畫
+                    this.stopHintAnimationCycle();
+                    return;
+                }
+                
+                // 播放第一次序列
+                this.playHintSequenceOnce(unclickedDots);
+                
+                // 延遲1000ms後播放第二次序列
+                setTimeout(() => {
+                    if (this.hintAnimationState.isActive) {
+                        this.playHintSequenceOnce(unclickedDots);
+                        
+                        // 播放完兩次序列後，等待3000ms再開始下一個循環
+                        setTimeout(() => {
+                            if (this.hintAnimationState.isActive) {
+                                this.scheduleNextHintCycle();
+                            }
+                        }, 3000); // 3秒間隔
+                    }
+                }, 1000);
+            }
+
+            // 播放單次提示序列
+            playHintSequenceOnce(unclickedDots) {
+                // 根據未點擊點點數量決定播放順序
+                if (unclickedDots.length === 3) {
+                    // 三個點點都沒點過：1->2->3
+                    this.playHintForDot(unclickedDots[0], 0);
+                    this.playHintForDot(unclickedDots[1], 100);
+                    this.playHintForDot(unclickedDots[2], 200);
+                } else if (unclickedDots.length === 2) {
+                    // 兩個點點沒點過：1->2
+                    this.playHintForDot(unclickedDots[0], 0);
+                    this.playHintForDot(unclickedDots[1], 100);
+                } else if (unclickedDots.length === 1) {
+                    // 一個點點沒點過：1
+                    this.playHintForDot(unclickedDots[0], 0);
+                }
+            }
+
+            // 為單個點點播放提示動畫
+            playHintForDot(dotData, delay) {
+                setTimeout(() => {
+                    if (!this.hintAnimationState.isActive || dotData.hasBeenClicked) return;
+                    
+                    this.animateDotHint(dotData);
+                }, delay);
+            }
+
+            // 點點提示動畫
+            animateDotHint(dotData) {
+                if (!dotData.hint || dotData.hintAnimation.isActive) return;
+                
+                console.log(`💡 開始播放點點 ${dotData.config.id} 的提示動畫`);
+                
+                dotData.hintAnimation.isActive = true;
+                dotData.hintAnimation.startTime = Date.now();
+                dotData.hintAnimation.scale = 0.0; // 從0開始
+                dotData.hintAnimation.opacity = 0.0;
+                
+                // 重置提示狀態 - 從0開始
+                dotData.hint.material.opacity = 0;
+                dotData.hint.scale.set(0, 0, 1); // 從大小為0開始
+                
+                const animate = () => {
+                    if (!dotData.hintAnimation.isActive) return;
+                    
+                    const elapsed = Date.now() - dotData.hintAnimation.startTime;
+                    const progress = Math.min(elapsed / 500, 1); // 500ms 動畫
+                    
+                    if (progress < 1) {
+                        // 動畫進行中：從0開始放大並淡入，然後淡出
+                        if (progress < 0.5) {
+                            // 前半段：從0開始放大並淡入
+                            const firstHalfProgress = progress * 2;
+                            dotData.hintAnimation.scale = firstHalfProgress * 1.5; // 從0放大到1.5倍
+                            dotData.hintAnimation.opacity = firstHalfProgress * 0.8; // 從0淡入到0.8
+                        } else {
+                            // 後半段：繼續放大並淡出
+                            const secondHalfProgress = (progress - 0.5) * 2;
+                            dotData.hintAnimation.scale = 1.5 + secondHalfProgress * 0.3; // 從1.5繼續放大到1.8倍
+                            dotData.hintAnimation.opacity = 0.8 * (1 - secondHalfProgress); // 從0.8淡出到0
+                        }
+                        
+                        // 應用動畫效果
+                        dotData.hint.scale.set(
+                            dotData.hintAnimation.scale,
+                            dotData.hintAnimation.scale,
+                            1
+                        );
+                        dotData.hint.material.opacity = dotData.hintAnimation.opacity;
+                        
+                        requestAnimationFrame(animate);
+                    } else {
+                        // 動畫結束 - 回到初始狀態
+                        dotData.hintAnimation.isActive = false;
+                        dotData.hint.material.opacity = 0;
+                        dotData.hint.scale.set(0, 0, 1); // 回到大小為0
+                        console.log(`💡 點點 ${dotData.config.id} 的提示動畫結束`);
+                    }
+                };
+                
+                animate();
+            }
+
+            // 標記點點為已點擊
+            markDotAsClicked(dotId) {
+                const dotData = this.interactiveDots.find(d => d.config.id === dotId);
+                if (dotData && !dotData.hasBeenClicked) {
+                    dotData.hasBeenClicked = true;
+                    console.log(`💡 點點 ${dotId} 已標記為已點擊`);
+                    
+                    // 檢查是否所有點點都被點擊過
+                    const allClicked = this.interactiveDots.every(d => d.hasBeenClicked);
+                    if (allClicked) {
+                        this.stopHintAnimationCycle();
+                        console.log('💡 所有點點都已點擊，停止提示動畫');
+                    }
+                }
+            }
+
             // 🎯 ================== 距離感應互動系統 ==================
 
             updateDistanceInteraction(event) {
@@ -3581,6 +3894,12 @@
                                 const opacity = targetOpacity * easeProgress;
                                 dotData.mesh.material.opacity = opacity;
                                 
+                                // 確保提示在點點淡入期間保持透明且縮放為0
+                                if (dotData.hint) {
+                                    dotData.hint.material.opacity = 0;
+                                    dotData.hint.scale.set(0, 0, 1);
+                                }
+                                
                                 // 大小呼吸效果，在淡入期間也同步開始，並考慮所有縮放效果
                                 const breathScale = 0.95 + 0.1 * (Math.sin(breathTime * 1.1 + phase) * 0.5 + 0.5);
                                 // 組合所有縮放效果：呼吸 × hover × 按下 × 距離
@@ -3595,6 +3914,16 @@
                             } else {
                                 // 淡入完成，切換到純呼吸動畫
                                 this.startBreathingAnimation(dotData, index);
+                                
+                                // 檢查是否是最後一個點點淡入完成
+                                if (index === this.interactiveDots.length - 1) {
+                                    console.log('🔴 所有點點淡入完成，準備啟動提示動畫');
+                                    // 延遲500ms後開始提示動畫循環
+                                    setTimeout(() => {
+                                        console.log('💡 延遲結束，開始啟動提示動畫循環');
+                                        this.startHintAnimationCycle();
+                                    }, 500);
+                                }
                             }
                         };
                         animate();

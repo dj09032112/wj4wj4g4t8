@@ -545,33 +545,20 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
 
-        /* 📱 行動裝置適配 - 使用設備識別而非螢幕大小 */
-        @media (max-width: 768px) {
+        /* 📱 觸控裝置專用設定 - 確保橫屏直屏文字大小一致 */
+        @media (hover: none) and (pointer: coarse) {
             .hint-text {
                 bottom: 10vh;
             }
             
             .hint-content {
-                font-size: 14px;
-                gap: 12px;
+                font-size: 14px !important; /* 強制使用固定大小 */
+                gap: 12px !important;
                 white-space: nowrap;
                 max-width: 90vw;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 justify-content: center;
-            }
-
-            .hint-content::before,
-            .hint-content::after {
-                width: 20px;
-            }
-        }
-
-        /* 📱 觸控裝置專用設定 - 確保橫屏直屏文字大小一致 */
-        @media (hover: none) and (pointer: coarse) {
-            .hint-content {
-                font-size: 12px !important; /* 強制使用固定大小 */
-                gap: 12px !important;
             }
 
             .hint-content::before,
@@ -701,7 +688,7 @@
 
         .gyro-permission-title {
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 500;
             color: #f4e3d4;
             margin-bottom: 8px;
             text-shadow: 0 0 10px rgba(244, 227, 212, 0.3);
@@ -727,7 +714,7 @@
             padding: 8px 16px;
             border-radius: 8px;
             font-size: 12px;
-            font-weight: bold;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.3s ease;
             backdrop-filter: blur(5px);
@@ -788,7 +775,8 @@
             }
         }
 
-        @media (max-width: 768px) {
+        /* 📱 觸控裝置陀螺儀授權對話框適配 */
+        @media (hover: none) and (pointer: coarse) {
             .gyro-permission {
                 bottom: 20px;
                 right: 20px;
@@ -883,8 +871,8 @@
             }
         }
 
-        /* 手機裝置：額外的觸控優化 */
-        @media (max-width: 480px) {
+        /* 📱 小螢幕觸控裝置：額外的觸控優化 */
+        @media (hover: none) and (pointer: coarse) and (max-width: 480px) {
             #back-button, #fullscreen-button, #reset-view-button {
                 transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
             }

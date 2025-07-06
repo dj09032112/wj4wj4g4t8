@@ -765,7 +765,7 @@
             }
             
             .gyro-permission-content {
-                max-width: none;
+                max-width: 280px; /* 保持原本的寬度限制 */
                 padding: 16px;
             }
             
@@ -2020,8 +2020,8 @@
                 const left = buttonRect.left + (buttonRect.width / 2) - (finalWidth / 2);
                 const top = buttonRect.bottom + 10; // 按鈕下方10px
 
-                // 確保提示不會超出視窗邊界
-                const maxLeft = window.innerWidth - tooltipWidth - 10;
+                // 確保提示不會超出視窗邊界 - 使用 finalWidth 而不是 tooltipWidth
+                const maxLeft = window.innerWidth - finalWidth - 10;
                 const adjustedLeft = Math.max(10, Math.min(left, maxLeft));
 
                 tooltip.style.left = adjustedLeft + 'px';
@@ -2439,6 +2439,9 @@
                             
                             // 重新計算所有圖層尺寸
                             this.updateAllLayerSizes();
+                            
+                            // 💬 更新提示對話框位置
+                            this.updateTooltipPositions();
                         }, 100); // 延遲100ms確保方向變化完成
                     }
                 };

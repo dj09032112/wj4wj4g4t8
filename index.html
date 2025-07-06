@@ -739,25 +739,6 @@
             box-shadow: 0 0 20px rgba(220, 156, 59, 0.6);
         }
 
-        /* 行動裝置適配 */
-        @media (max-width: 1024px) {
-            /* 📱 對話框文字行動裝置適配 */
-            .tooltip-title {
-                font-size: 10px;  /* 行動裝置主要標題 */
-            }
-            
-            .tooltip-subtitle {
-                font-size: 8px;  /* 行動裝置副標題 */
-            }
-            
-            /* 📱 行動裝置對話框寬度適配 */
-            .tooltip-content {
-                min-width: 40px;
-                max-width: 60px;
-                padding: 6px 8px;
-            }
-        }
-
         /* 📱 觸控裝置對話框文字固定大小 - 確保橫屏直屏一致 */
         @media (hover: none) and (pointer: coarse) {
             .tooltip-title {
@@ -780,7 +761,7 @@
             .gyro-permission {
                 bottom: 20px;
                 right: 20px;
-                left: 20px;
+                /* 移除 left: 20px，保持右下角定位 */
             }
             
             .gyro-permission-content {
@@ -983,8 +964,8 @@
             }
         }
 
-        /* 行動裝置：調整按鈕大小 */
-        @media (max-width: 1024px) {
+        /* 📱 觸控裝置按鈕統一設定 - 確保橫屏直屏一致 */
+        @media (hover: none) and (pointer: coarse) {
             #back-button {
                 width: 40px;
                 height: 40px;

@@ -1,0 +1,40 @@
+{
+  "meta": {
+    "title": "視差兔兔 - dj0903",
+    "og_title": "視差兔兔 | dj0903的第一個互動式網頁作品！",
+    "og_description": "嘗試用網頁做出一點點沉浸感的敘事空間~ 支援電腦、手機、平板等裝置互動操作。",
+    "og_url": "https://dj0903-parallax-rabbit.vercel.app/"
+  },
+
+  "ui": {
+    "back": "返回",
+    "fullscreen": "全螢幕",
+    "exit_fullscreen": "退出全螢幕",
+    "reset_view": "重置視角",
+    "click_to_close": "點我關閉"
+  },
+  "gyro": {
+    "title": "陀螺儀權限",
+    "description": "本網站使用裝置方向感應來增強互動體驗，請允許存取以提供更沉浸的體驗。",
+    "allow": "允許",
+    "deny": "拒絕"
+  },
+  "interaction": {
+    "click_to_explore": "點擊探索",
+    "tap_to_explore": "點擊探索",
+    "return_to_main": "點擊任意位置返回主視角",
+    "main_view_desktop": "移動滑鼠來轉動視角",
+    "main_view_mobile": "轉動裝置來旋轉視角",
+    "detail_view": "點擊任意位置返回主視角"
+  },
+  "errors": {
+    "webgl_not_supported": "您的瀏覽器不支援WebGL，請使用現代瀏覽器來檢視此內容。",
+    "texture_load_failed": "載入圖片資源失敗，請檢查網路連線並重新整理頁面。",
+    "device_not_supported": "您的裝置可能不完全支援，部分功能可能受限。",
+    "cors_message": "請使用本地伺服器開啟此網頁以避免 CORS 問題",
+    "suggested_solutions": "建議解決方案：",
+    "python_solution": "使用 Python:",
+    "nodejs_solution": "使用 Node.js:",
+    "vscode_solution": "使用 VS Code Live Server 擴充功能"
+  }
+} 

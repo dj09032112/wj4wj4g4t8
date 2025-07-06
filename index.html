@@ -3,26 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Parallax Rabbit - dj0903</title>
+    <title data-i18n="meta.title">Parallax Rabbit - dj0903</title>
     <link rel="icon" type="image/png" href="images/icon/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="images/icon/favicon.svg" />
     <link rel="shortcut icon" href="images/icon/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="images/icon/apple-touch-icon.png" />
     <link rel="manifest" href="images/icon/site.webmanifest" />
     <!-- 預覽標題 -->
-    <meta property="og:title" content="Parallax Rabbit | dj0903的第一個互動式網頁作品！" />
+    <meta property="og:title" data-i18n="meta.og_title" content="Parallax Rabbit | dj0903's First Interactive Web Project!" />
     <!-- 預覽說明 -->
-    <meta property="og:description" content="嘗試用網頁做出一點點沉浸感的敘事空間~ 支援電腦、手機、平板等裝置互動操作。" />
+    <meta property="og:description" data-i18n="meta.og_description" content="Trying to create a bit of immersive narrative space with web technology~ Supports interactive operations on computers, phones, tablets and other devices." />
     <!-- 預覽圖片 -->
     <meta property="og:image" content="https://dj0903-parallax-rabbit.vercel.app/images/meta/og-image.png" />
     <!-- 預覽網址（可選） -->
-    <meta property="og:url" content="https://dj0903-parallax-rabbit.vercel.app/" />
+    <meta property="og:url" data-i18n="meta.og_url" content="https://dj0903-parallax-rabbit.vercel.app/" />
     <meta property="og:type" content="website" />
     <!-- Twitter 專用（可略，但建議保留） -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Parallax Rabbit | dj0903的第一個互動式網頁作品！" />
-    <meta name="twitter:description" content="嘗試用網頁做出一點點沉浸感的敘事空間~ 支援電腦、手機、平板等裝置互動操作。" />
+    <meta name="twitter:title" data-i18n="meta.og_title" content="Parallax Rabbit | dj0903's First Interactive Web Project!" />
+    <meta name="twitter:description" data-i18n="meta.og_description" content="Trying to create a bit of immersive narrative space with web technology~ Supports interactive operations on computers, phones, tablets and other devices." />
     <meta name="twitter:image" content="https://dj0903-parallax-rabbit.vercel.app/images/meta/og-image.png" />
+    
+    <!-- 字體載入 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Noto+Sans+TC:wght@100;300;400;500&display=swap" rel="stylesheet">
 
     <style>
         * {
@@ -456,6 +461,196 @@
             z-index: 2002; /* 載入層：錯誤訊息 */
         }
 
+        /* 🌟 通用主字體樣式 */
+        * {
+            font-family: 'Cormorant Garamond', 'Georgia', 'Times New Roman', 'Times', serif;
+        }
+
+        /* 💡 提示文字樣式 - 優雅簡潔 */
+        .hint-text {
+            position: fixed;
+            bottom: 8vh;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .hint-text.show {
+            opacity: 1;
+        }
+
+        .hint-content {
+            font-family: 'Cormorant Garamond Light', 'Georgia', 'Times New Roman', 'Times', serif;
+            font-size: 15px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.95);
+            text-align: center;
+            letter-spacing: 0.8px;
+            line-height: 1.5;
+            text-shadow: 
+                0 2px 8px rgba(0, 0, 0, 0.8),
+                0 1px 3px rgba(0, 0, 0, 0.6);
+            white-space: nowrap;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: opacity 0.3s ease, filter 0.3s ease;
+            justify-content: center;
+        }
+
+        /* 中文專用字體 */
+        .hint-content[lang="zh"] {
+            font-family: 'Noto Sans TC Light', 'Cormorant Garamond Light', 'Georgia', serif;
+        }
+
+        /* 主視角提示文字 */
+        .main-hint {
+            opacity: 1;
+            filter: blur(0px);
+        }
+
+        /* 局部視角提示文字 */
+        .detail-hint {
+            opacity: 0;
+            filter: blur(5px);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+        }
+
+        /* 過渡狀態 */
+        .hint-content.transitioning {
+            transition: opacity 0.3s ease, filter 0.3s ease;
+        }
+
+        /* 裝飾線 */
+        .hint-content::before,
+        .hint-content::after {
+            content: '';
+            flex-shrink: 0;
+            width: 30px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 📱 行動裝置適配 */
+        @media (max-width: 768px) {
+            .hint-text {
+                bottom: 10vh;
+            }
+            
+            .hint-content {
+                font-size: 14px;
+                gap: 12px;
+                white-space: nowrap;
+                max-width: 90vw;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                justify-content: center;
+            }
+
+            .hint-content::before,
+            .hint-content::after {
+                width: 20px;
+            }
+        }
+
+        /* 💬 按鈕提示對話框樣式 */
+        .button-tooltip {
+            position: fixed;
+            z-index: 2000;
+            pointer-events: none;
+            opacity: 0;
+            transform: scale(0.3) translateY(-20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            transform-origin: top center;
+        }
+
+        .button-tooltip.show {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: auto;
+        }
+
+        .tooltip-arrow {
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid rgba(244, 227, 212, 0.3);
+        }
+
+        .tooltip-content {
+            background: rgba(244, 227, 212, 0.3);
+            border-radius: 12px;
+            padding: 8px 10px;
+            text-align: center;
+            width: fit-content;
+            min-width: 44px;
+            max-width: 66px;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transform-origin: top center;
+        }
+
+        .tooltip-title {
+            font-family: 'Cormorant Garamond Light', 'Georgia', serif;
+            font-size: 12px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 6px;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .tooltip-subtitle {
+            font-family: 'Noto Sans TC Light', 'Cormorant Garamond Light', serif;
+            font-size: 9px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        /* 中文專用字體 */
+        .tooltip-title[lang="zh"] {
+            font-family: 'Noto Sans TC Light', 'Cormorant Garamond Light', serif;
+        }
+
+        .tooltip-subtitle[lang="zh"] {
+            font-family: 'Noto Sans TC Light', 'Cormorant Garamond Light', serif;
+        }
+
+        /* 滑鼠懸停效果 */
+        .tooltip-content:hover {
+            background: rgba(244, 227, 212, 0.6);
+            transform: scale(1.02);
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .tooltip-content:hover ~ .tooltip-arrow {
+            border-bottom-color: rgba(244, 227, 212, 0.6);
+            transition: border-bottom-color 0.2s ease;
+        }
+
         /* 🎮 陀螺儀授權按鈕樣式 - 極簡風格 */
         .gyro-permission {
             position: fixed;
@@ -545,6 +740,24 @@
         }
 
         /* 行動裝置適配 */
+        @media (max-width: 1024px) {
+            /* 📱 對話框文字行動裝置適配 */
+            .tooltip-title {
+                font-size: 10px;  /* 行動裝置主要標題 */
+            }
+            
+            .tooltip-subtitle {
+                font-size: 8px;  /* 行動裝置副標題 */
+            }
+            
+            /* 📱 行動裝置對話框寬度適配 */
+            .tooltip-content {
+                min-width: 40px;
+                max-width: 60px;
+                padding: 6px 8px;
+            }
+        }
+
         @media (max-width: 768px) {
             .gyro-permission {
                 bottom: 20px;
@@ -743,7 +956,7 @@
                 width: 40px;
                 height: 40px;
                 top: 20px;
-                right: 80px; /* 在全螢幕按鈕左邊，與桌面版保持一致 */
+                right: 86px; /* 在全螢幕按鈕左邊，與1024px以下保持一致 */
             }
             
             #reset-view-button svg {
@@ -752,23 +965,20 @@
             }
         }
 
-        /* 行動裝置：調整全螢幕按鈕大小 */
+        /* 行動裝置：調整按鈕大小 */
         @media (max-width: 1024px) {
-            #fullscreen-button {
-                width: 44px;
-                height: 44px;
-                top: 25px;
-                right: 25px;
+            #back-button {
+                width: 40px;
+                height: 40px;
+                top: 20px;
+                left: 20px;
             }
             
-            #fullscreen-button svg {
-                width: 20px;
-                height: 20px;
+            #back-button svg {
+                width: 18px;
+                height: 18px;
             }
-        }
-
-        /* 小螢幕行動裝置：調整全螢幕按鈕大小 */
-        @media (max-width: 768px) {
+            
             #fullscreen-button {
                 width: 40px;
                 height: 40px;
@@ -780,7 +990,21 @@
                 width: 18px;
                 height: 18px;
             }
+            
+            #reset-view-button {
+                width: 40px;
+                height: 40px;
+                top: 20px;
+                right: 86px;
+            }
+            
+            #reset-view-button svg {
+                width: 18px;
+                height: 18px;
+            }
         }
+
+
 
         @media (max-width: 768px) {
             .loading-container {
@@ -818,13 +1042,13 @@
         </div>
         
         <div id="error-message">
-            <h3>⚠️ 載入錯誤</h3>
-            <p>請使用本地伺服器開啟此網頁以避免 CORS 問題</p>
+            <h3>⚠️ <span data-i18n="errors.texture_load_failed">Failed to load image resources. Please check your internet connection and refresh the page.</span></h3>
+            <p data-i18n="errors.cors_message">Please use a local server to open this webpage to avoid CORS issues</p>
             <br>
-            <p><strong>建議解決方案：</strong></p>
-            <p>1. 使用 Python: <code>python -m http.server 8000</code></p>
-            <p>2. 使用 Node.js: <code>npx http-server</code></p>
-            <p>3. 使用 VS Code Live Server 擴充功能</p>
+            <p><strong data-i18n="errors.suggested_solutions">Suggested Solutions:</strong></p>
+            <p>1. <span data-i18n="errors.python_solution">Use Python:</span> <code>python -m http.server 8000</code></p>
+            <p>2. <span data-i18n="errors.nodejs_solution">Use Node.js:</span> <code>npx http-server</code></p>
+            <p>3. <span data-i18n="errors.vscode_solution">Use VS Code Live Server extension</span></p>
         </div>
         
         <button id="back-button" onclick="handleBackButton()">
@@ -855,22 +1079,48 @@
             </svg>
         </button>
 
+        <!-- 按鈕提示對話框 -->
+        <div id="fullscreen-tooltip" class="button-tooltip">
+            <div class="tooltip-content">
+                <div class="tooltip-title" data-i18n="ui.fullscreen">Fullscreen</div>
+                <div class="tooltip-subtitle" data-i18n="ui.click_to_close">Click to close</div>
+            </div>
+            <div class="tooltip-arrow"></div>
+        </div>
+
+        <div id="reset-view-tooltip" class="button-tooltip">
+            <div class="tooltip-content">
+                <div class="tooltip-title" data-i18n="ui.reset_view">Reset View</div>
+                <div class="tooltip-subtitle" data-i18n="ui.click_to_close">Click to close</div>
+            </div>
+            <div class="tooltip-arrow"></div>
+        </div>
+
         <!-- 🎮 iOS陀螺儀授權按鈕 - 極簡風格 -->
         <div id="gyro-permission" class="gyro-permission">
             <div class="gyro-permission-content">
                 <div class="gyro-permission-icon">🎮</div>
-                <div class="gyro-permission-title">陀螺儀控制</div>
-                <div class="gyro-permission-desc">點擊啟用以獲得最佳互動體驗</div>
+                <div class="gyro-permission-title" data-i18n="gyro.title">Gyroscope Permission</div>
+                <div class="gyro-permission-desc" data-i18n="gyro.description">This website uses device orientation to enhance the interactive experience. Please allow access to provide a more immersive experience.</div>
                 <div class="gyro-permission-buttons">
-                    <button id="enable-gyro-btn" class="gyro-permission-btn primary">啟用</button>
+                    <button id="enable-gyro-btn" class="gyro-permission-btn primary" data-i18n="gyro.allow">Allow</button>
                 </div>
             </div>
         </div>
         
         <canvas id="canvas"></canvas>
+        
+        <!-- 提示文字 -->
+        <div id="hint-text" class="hint-text">
+            <!-- 主視角提示文字 -->
+            <span class="hint-content main-hint" data-i18n="interaction.main_view_desktop">Move your mouse to rotate the view</span>
+            <!-- 局部視角提示文字 -->
+            <span class="hint-content detail-hint" data-i18n="interaction.detail_view">Click anywhere to return to main view</span>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="js/i18n.js"></script>
     <script>
         class ParallaxViewer {
             constructor() {
@@ -986,6 +1236,17 @@
                 this.isOrientationTransitioning = false;   // 是否正在進行螢幕方向過渡
                 this.lastRawX = 0;                         // 最新的原始X值
                 this.lastRawY = 0;                         // 最新的原始Y值
+
+                // 🌍 國際化系統
+                this.i18n = null;                          // i18n實例
+
+                // 💡 提示文字系統
+                this.hintTextElement = null;               // 提示文字元素
+                this.currentHintType = null;               // 當前提示類型
+
+                // 💬 按鈕提示系統
+                this.buttonTooltips = {};                  // 按鈕提示元素
+                this.tooltipVisible = {};                  // 提示顯示狀態
 
                 /*
                  * 📖 參數說明：
@@ -1413,24 +1674,368 @@
             }
 
             init() {
-                this.setupLoadingScene();
-                this.setupScene();
-                this.setupEventListeners();
-                this.createLoadingParticles(); // 創建載入粒子效果
-                this.randomizeSpinnerRings(); // 設定隨機旋轉效果
+                // 🌍 初始化i18n系統
+                initI18n().then(i18n => {
+                    this.i18n = i18n;
+                    // i18n載入完成後再初始化其他內容
+                    this.setupLoadingScene();
+                    this.setupScene();
+                    this.setupEventListeners();
+                    this.createLoadingParticles(); // 創建載入粒子效果
+                    this.randomizeSpinnerRings(); // 設定隨機旋轉效果
+
+                    // 🎭 設定層級引用
+                    this.loadingLayer = this.loadingScene; // 載入層：Three.js 場景
+                    this.uiLayer = document.getElementById('back-button'); // UI層：DOM 元素
+
+                    // 🎮 初始化混合控制系統
+                    this.initControlSystem();
+
+                    // 🔄 重置視角按鈕事件監聽器
+                    document.getElementById('reset-view-button').addEventListener('click', this.resetView.bind(this));
+
+                    // 💡 初始化提示文字系統
+                    this.initHintText();
+
+                    // 💬 初始化按鈕提示系統
+                    this.initButtonTooltips();
+
+                    this.loadLoadingCover(); // 優先載入封面圖
+                    this.animate();
+                });
+            }
+
+            // 💡 初始化提示文字系統
+            initHintText() {
+                this.hintTextElement = document.getElementById('hint-text');
+                if (this.hintTextElement) {
+                    // 初始化文字內容
+                    this.initHintTextContent();
+                    
+                    // 載入完成後顯示主視角提示
+                    setTimeout(() => {
+                        this.showMainHint();
+                    }, 2000); // 2秒後顯示提示
+                }
+            }
+
+            // 💡 初始化提示文字內容
+            initHintTextContent() {
+                if (!this.i18n) return;
+
+                const mainHint = this.hintTextElement.querySelector('.main-hint');
+                const detailHint = this.hintTextElement.querySelector('.detail-hint');
+
+                if (mainHint) {
+                    // 根據裝置類型設定主視角文字
+                    const mainTextKey = this.isMobile ? 'interaction.main_view_mobile' : 'interaction.main_view_desktop';
+                    mainHint.textContent = this.i18n.t(mainTextKey);
+                    mainHint.setAttribute('data-i18n', mainTextKey);
+                    mainHint.setAttribute('lang', this.i18n.getCurrentLanguage());
+                }
+
+                if (detailHint) {
+                    detailHint.textContent = this.i18n.t('interaction.detail_view');
+                    detailHint.setAttribute('data-i18n', 'interaction.detail_view');
+                    detailHint.setAttribute('lang', this.i18n.getCurrentLanguage());
+                }
+            }
+
+            // 💡 顯示主視角提示
+            showMainHint() {
+                if (!this.hintTextElement) return;
                 
-                // 🎭 設定層級引用
-                this.loadingLayer = this.loadingScene; // 載入層：Three.js 場景
-                this.uiLayer = document.getElementById('back-button'); // UI層：DOM 元素
+                this.currentHintType = 'main';
+                this.hintTextElement.classList.add('show');
                 
-                // 🎮 初始化混合控制系統
-                this.initControlSystem();
+                // 確保主視角文字顯示，局部視角文字隱藏
+                const mainHint = this.hintTextElement.querySelector('.main-hint');
+                const detailHint = this.hintTextElement.querySelector('.detail-hint');
                 
-                // 🔄 重置視角按鈕事件監聽器
-                document.getElementById('reset-view-button').addEventListener('click', this.resetView.bind(this));
+                if (mainHint) {
+                    mainHint.style.opacity = '1';
+                    mainHint.style.filter = 'blur(0px)';
+                }
+                if (detailHint) {
+                    detailHint.style.opacity = '0';
+                    detailHint.style.filter = 'blur(5px)';
+                }
+            }
+
+            // 💡 顯示局部視角提示
+            showDetailHint() {
+                if (!this.hintTextElement) return;
                 
-                this.loadLoadingCover(); // 優先載入封面圖
-                this.animate();
+                this.currentHintType = 'detail';
+                this.hintTextElement.classList.add('show');
+                
+                // 確保局部視角文字顯示，主視角文字隱藏
+                const mainHint = this.hintTextElement.querySelector('.main-hint');
+                const detailHint = this.hintTextElement.querySelector('.detail-hint');
+                
+                if (mainHint) {
+                    mainHint.style.opacity = '0';
+                    mainHint.style.filter = 'blur(5px)';
+                }
+                if (detailHint) {
+                    detailHint.style.opacity = '1';
+                    detailHint.style.filter = 'blur(0px)';
+                }
+            }
+
+            // 💡 主視角過渡到局部視角
+            transitionToDetailHint(progress) {
+                if (!this.hintTextElement) return;
+                
+                const mainHint = this.hintTextElement.querySelector('.main-hint');
+                const detailHint = this.hintTextElement.querySelector('.detail-hint');
+                
+                if (!mainHint || !detailHint) return;
+
+                if (progress <= 0.25) {
+                    // 0-25%: 主視角文字淡出並模糊
+                    const opacity = 1 - (progress / 0.25);
+                    const blur = (progress / 0.25) * 5;
+                    mainHint.style.opacity = opacity;
+                    mainHint.style.filter = `blur(${blur}px)`;
+                } else if (progress <= 0.75) {
+                    // 25-75%: 主視角文字完全隱藏，局部視角文字淡入
+                    mainHint.style.opacity = '0';
+                    mainHint.style.filter = 'blur(5px)';
+                    
+                    const detailProgress = (progress - 0.25) / 0.5; // 0-1
+                    const opacity = detailProgress;
+                    const blur = 5 - (detailProgress * 5);
+                    detailHint.style.opacity = opacity;
+                    detailHint.style.filter = `blur(${blur}px)`;
+                } else {
+                    // 75-100%: 局部視角文字完全顯示
+                    mainHint.style.opacity = '0';
+                    mainHint.style.filter = 'blur(5px)';
+                    detailHint.style.opacity = '1';
+                    detailHint.style.filter = 'blur(0px)';
+                }
+            }
+
+            // 💡 局部視角過渡到主視角
+            transitionToMainHint(progress) {
+                if (!this.hintTextElement) return;
+                
+                const mainHint = this.hintTextElement.querySelector('.main-hint');
+                const detailHint = this.hintTextElement.querySelector('.detail-hint');
+                
+                if (!mainHint || !detailHint) return;
+
+                if (progress <= 0.25) {
+                    // 0-25%: 局部視角文字淡出並模糊
+                    const opacity = 1 - (progress / 0.25);
+                    const blur = (progress / 0.25) * 5;
+                    detailHint.style.opacity = opacity;
+                    detailHint.style.filter = `blur(${blur}px)`;
+                } else if (progress <= 0.75) {
+                    // 25-75%: 局部視角文字完全隱藏，主視角文字淡入
+                    detailHint.style.opacity = '0';
+                    detailHint.style.filter = 'blur(5px)';
+                    
+                    const mainProgress = (progress - 0.25) / 0.5; // 0-1
+                    const opacity = mainProgress;
+                    const blur = 5 - (mainProgress * 5);
+                    mainHint.style.opacity = opacity;
+                    mainHint.style.filter = `blur(${blur}px)`;
+                } else {
+                    // 75-100%: 主視角文字完全顯示
+                    detailHint.style.opacity = '0';
+                    detailHint.style.filter = 'blur(5px)';
+                    mainHint.style.opacity = '1';
+                    mainHint.style.filter = 'blur(0px)';
+                }
+            }
+
+            // 💡 隱藏提示文字
+            hideHintText() {
+                if (this.hintTextElement) {
+                    this.hintTextElement.classList.remove('show');
+                }
+            }
+
+            // 💬 初始化按鈕提示系統
+            initButtonTooltips() {
+                this.buttonTooltips = {
+                    fullscreen: document.getElementById('fullscreen-tooltip'),
+                    resetView: document.getElementById('reset-view-tooltip')
+                };
+
+                this.tooltipVisible = {
+                    fullscreen: false,
+                    resetView: false
+                };
+
+                // 初始化提示文字內容
+                this.initTooltipContent();
+
+                // 添加點擊事件監聽器
+                this.setupTooltipEventListeners();
+
+                // 載入完成後顯示提示
+                setTimeout(() => {
+                    this.showButtonTooltips();
+                }, 2500); // 2.5秒後顯示提示
+            }
+
+            // 💬 初始化提示文字內容
+            initTooltipContent() {
+                if (!this.i18n) return;
+
+                const fullscreenTooltip = this.buttonTooltips.fullscreen;
+                const resetViewTooltip = this.buttonTooltips.resetView;
+
+                if (fullscreenTooltip) {
+                    const title = fullscreenTooltip.querySelector('.tooltip-title');
+                    const subtitle = fullscreenTooltip.querySelector('.tooltip-subtitle');
+                    
+                    if (title) {
+                        title.textContent = this.i18n.t('ui.fullscreen');
+                        title.setAttribute('lang', this.i18n.getCurrentLanguage());
+                    }
+                    if (subtitle) {
+                        subtitle.textContent = this.i18n.t('ui.click_to_close');
+                        subtitle.setAttribute('lang', this.i18n.getCurrentLanguage());
+                    }
+                }
+
+                if (resetViewTooltip) {
+                    const title = resetViewTooltip.querySelector('.tooltip-title');
+                    const subtitle = resetViewTooltip.querySelector('.tooltip-subtitle');
+                    
+                    if (title) {
+                        title.textContent = this.i18n.t('ui.reset_view');
+                        title.setAttribute('lang', this.i18n.getCurrentLanguage());
+                    }
+                    if (subtitle) {
+                        subtitle.textContent = this.i18n.t('ui.click_to_close');
+                        subtitle.setAttribute('lang', this.i18n.getCurrentLanguage());
+                    }
+                }
+            }
+
+            // 💬 設定提示事件監聽器
+            setupTooltipEventListeners() {
+                // 全螢幕按鈕提示
+                if (this.buttonTooltips.fullscreen) {
+                    this.buttonTooltips.fullscreen.addEventListener('click', () => {
+                        this.hideButtonTooltip('fullscreen');
+                    });
+                }
+                const fullscreenBtn = document.getElementById('fullscreen-button');
+                if (fullscreenBtn) {
+                    fullscreenBtn.addEventListener('click', () => {
+                        this.hideButtonTooltip('fullscreen');
+                    });
+                }
+
+                // 重置視角按鈕提示
+                if (this.buttonTooltips.resetView) {
+                    this.buttonTooltips.resetView.addEventListener('click', () => {
+                        this.hideButtonTooltip('resetView');
+                    });
+                }
+                const resetViewBtn = document.getElementById('reset-view-button');
+                if (resetViewBtn) {
+                    resetViewBtn.addEventListener('click', () => {
+                        this.hideButtonTooltip('resetView');
+                    });
+                }
+            }
+
+            // 💬 顯示按鈕提示
+            showButtonTooltips() {
+                // 顯示全螢幕按鈕提示
+                this.showButtonTooltip('fullscreen');
+
+                // 只在行動裝置上顯示重置視角按鈕提示
+                if (this.isMobile) {
+                    this.showButtonTooltip('resetView');
+                }
+            }
+
+            // 💬 顯示單個按鈕提示
+            showButtonTooltip(tooltipType) {
+                const tooltip = this.buttonTooltips[tooltipType];
+                if (!tooltip || this.tooltipVisible[tooltipType]) return;
+
+                // 定位提示對話框
+                this.positionTooltip(tooltipType);
+                
+                // 顯示提示
+                tooltip.classList.add('show');
+                this.tooltipVisible[tooltipType] = true;
+            }
+
+            // 💬 隱藏按鈕提示
+            hideButtonTooltip(tooltipType) {
+                const tooltip = this.buttonTooltips[tooltipType];
+                if (!tooltip || !this.tooltipVisible[tooltipType]) return;
+
+                tooltip.classList.remove('show');
+                this.tooltipVisible[tooltipType] = false;
+            }
+
+            // 💬 定位提示對話框
+            positionTooltip(tooltipType) {
+                const tooltip = this.buttonTooltips[tooltipType];
+                if (!tooltip) return;
+
+                let button;
+                switch (tooltipType) {
+                    case 'fullscreen':
+                        button = document.getElementById('fullscreen-button');
+                        break;
+                    case 'resetView':
+                        button = document.getElementById('reset-view-button');
+                        break;
+                    default:
+                        return;
+                }
+
+                if (!button) return;
+
+                const buttonRect = button.getBoundingClientRect();
+                const tooltipContent = tooltip.querySelector('.tooltip-content');
+
+                // 讓對話框自適應文字寬度，但限制最大寬度
+                tooltipContent.style.width = 'fit-content';
+                
+                // 獲取實際的對話框寬度
+                const tooltipWidth = tooltipContent.offsetWidth;
+                const maxWidth = buttonRect.width * 1.5; // 最多1.5個按鈕寬度
+                const finalWidth = Math.min(tooltipWidth, maxWidth);
+                
+                // 如果文字太長，設定最大寬度並顯示省略號
+                if (tooltipWidth > maxWidth) {
+                    tooltipContent.style.width = maxWidth + 'px';
+                    tooltipContent.style.overflow = 'hidden';
+                    tooltipContent.style.textOverflow = 'ellipsis';
+                }
+
+                // 計算位置：按鈕下方居中
+                const left = buttonRect.left + (buttonRect.width / 2) - (finalWidth / 2);
+                const top = buttonRect.bottom + 10; // 按鈕下方10px
+
+                // 確保提示不會超出視窗邊界
+                const maxLeft = window.innerWidth - tooltipWidth - 10;
+                const adjustedLeft = Math.max(10, Math.min(left, maxLeft));
+
+                tooltip.style.left = adjustedLeft + 'px';
+                tooltip.style.top = top + 'px';
+            }
+
+            // 💬 更新所有提示位置（用於視窗縮放）
+            updateTooltipPositions() {
+                Object.keys(this.tooltipVisible).forEach(tooltipType => {
+                    if (this.tooltipVisible[tooltipType]) {
+                        this.positionTooltip(tooltipType);
+                    }
+                });
             }
 
             // 🎮 初始化控制系統
@@ -1958,6 +2563,9 @@
                     
                     // 📱 更新按鈕顯示狀態（螢幕方向變化時）
                     this.monitorControlMode();
+                    
+                    // 💬 更新提示對話框位置
+                    this.updateTooltipPositions();
                 });
             }
 
@@ -2581,6 +3189,9 @@
                     // 🌫️ 應用過渡模糊效果
                     this.applyTransitionBlur(progress);
                     
+                    // 💡 提示文字過渡動畫
+                    this.transitionToDetailHint(progress);
+                    
                     if (progress < 1) {
                         requestAnimationFrame(animate);
                     } else {
@@ -2744,6 +3355,9 @@
                     
                     // 🌫️ 應用過渡模糊效果
                     this.applyTransitionBlur(progress);
+                    
+                    // 💡 提示文字過渡動畫
+                    this.transitionToMainHint(progress);
                     
                     if (progress < 1) {
                         requestAnimationFrame(animate);
@@ -4059,6 +4673,7 @@
 
         // 全域變數用於存取ParallaxViewer實例
         let parallaxViewerInstance = null;
+        window.parallaxViewerInstance = null;
 
         // 返回按鈕處理函數
         function handleBackButton() {
@@ -4109,6 +4724,7 @@
         // 初始化應用程式
         document.addEventListener('DOMContentLoaded', () => {
             parallaxViewerInstance = new ParallaxViewer();
+            window.parallaxViewerInstance = parallaxViewerInstance;
             
             // 全螢幕狀態監聽
             const fullscreenButton = document.getElementById('fullscreen-button');

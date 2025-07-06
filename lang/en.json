@@ -1,0 +1,40 @@
+{
+  "meta": {
+    "title": "Parallax Rabbit - dj0903",
+    "og_title": "Parallax Rabbit | dj0903's First Interactive Web Project!",
+    "og_description": "Trying to create a bit of immersive narrative space with web technology~ Supports interactive operations on computers, phones, tablets and other devices.",
+    "og_url": "https://dj0903-parallax-rabbit.vercel.app/"
+  },
+
+  "ui": {
+    "back": "Back",
+    "fullscreen": "Fullscreen",
+    "exit_fullscreen": "Exit Fullscreen",
+    "reset_view": "Reset View",
+    "click_to_close": "Click to close"
+  },
+  "gyro": {
+    "title": "Gyroscope Permission",
+    "description": "This website uses device orientation to enhance the interactive experience. Please allow access to provide a more immersive experience.",
+    "allow": "Allow",
+    "deny": "Deny"
+  },
+  "interaction": {
+    "click_to_explore": "Click to explore",
+    "tap_to_explore": "Tap to explore",
+    "return_to_main": "Click anywhere to return to main view",
+    "main_view_desktop": "Move your mouse to rotate the view",
+    "main_view_mobile": "Rotate your device to change the perspective",
+    "detail_view": "Click anywhere to return to main view"
+  },
+  "errors": {
+    "webgl_not_supported": "WebGL is not supported in your browser. Please use a modern browser to view this content.",
+    "texture_load_failed": "Failed to load image resources. Please check your internet connection and refresh the page.",
+    "device_not_supported": "Your device may not be fully supported. Some features may be limited.",
+    "cors_message": "Please use a local server to open this webpage to avoid CORS issues",
+    "suggested_solutions": "Suggested Solutions:",
+    "python_solution": "Use Python:",
+    "nodejs_solution": "Use Node.js:",
+    "vscode_solution": "Use VS Code Live Server extension"
+  }
+} 

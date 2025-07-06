@@ -583,7 +583,7 @@
             pointer-events: none;
             opacity: 0;
             transform: scale(0.3) translateY(-20px);
-            transition: opacity 0.4s ease, transform 0.4s ease, left 0.3s ease, top 0.3s ease;
+            transition: opacity 0.4s ease, transform 0.4s ease, left 0.15s ease, top 0.15s ease;
             transform-origin: top center;
         }
 
@@ -705,6 +705,7 @@
             display: flex;
             gap: 8px;
             justify-content: center;
+            align-items: center;
         }
 
         .gyro-permission-btn {
@@ -774,6 +775,7 @@
             .gyro-permission-buttons {
                 flex-direction: column;
                 gap: 6px;
+                align-items: center;
             }
             
             .gyro-permission-btn {
@@ -2382,46 +2384,48 @@
                         this.smoothOrientationTransition();
                         
                         // 📱 修正：螢幕方向變化時強制重新計算容器大小
-                        // 立即執行，避免延遲造成的跳動
-                        console.log('🔄 方向變化後重新計算容器大小');
-                        
-                        // 💬 立即更新提示對話框位置，避免重疊
-                        this.updateTooltipPositions();
-                        
-                        // 強制觸發resize事件處理邏輯
-                        this.camera.aspect = window.innerWidth / window.innerHeight;
-                        this.camera.updateProjectionMatrix();
-                        
-                        // 📱 高解析螢幕支援：重新設定像素比例和大小
-                        const maxRatio = 2;
-                        const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
-                        this.renderer.setPixelRatio(pixelRatio);
-                        this.renderer.setSize(window.innerWidth, window.innerHeight, false);
-                        
-                        // 📱 確保canvas元素在DOM中的顯示尺寸正確
-                        const canvas = document.getElementById('canvas');
-                        if (canvas) {
-                            canvas.style.width = window.innerWidth + 'px';
-                            canvas.style.height = window.innerHeight + 'px';
-                        }
-                        
-                        // 同時調整載入場景
-                        if (this.loadingCamera && this.loadingRenderer) {
-                            this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
-                            this.loadingCamera.updateProjectionMatrix();
-                            this.loadingRenderer.setPixelRatio(pixelRatio);
-                            this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                        // 短延遲執行，確保DOM更新完成但避免過長延遲
+                        setTimeout(() => {
+                            console.log('🔄 方向變化後重新計算容器大小');
                             
-                            // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
-                            const loadingCanvas = document.getElementById('loading-canvas');
-                            if (loadingCanvas) {
-                                loadingCanvas.style.width = window.innerWidth + 'px';
-                                loadingCanvas.style.height = window.innerHeight + 'px';
+                            // 💬 更新提示對話框位置
+                            this.updateTooltipPositions();
+                            
+                            // 強制觸發resize事件處理邏輯
+                            this.camera.aspect = window.innerWidth / window.innerHeight;
+                            this.camera.updateProjectionMatrix();
+                            
+                            // 📱 高解析螢幕支援：重新設定像素比例和大小
+                            const maxRatio = 2;
+                            const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+                            this.renderer.setPixelRatio(pixelRatio);
+                            this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+                            
+                            // 📱 確保canvas元素在DOM中的顯示尺寸正確
+                            const canvas = document.getElementById('canvas');
+                            if (canvas) {
+                                canvas.style.width = window.innerWidth + 'px';
+                                canvas.style.height = window.innerHeight + 'px';
                             }
-                        }
-                        
-                        // 重新計算所有圖層尺寸
-                        this.updateAllLayerSizes();
+                            
+                            // 同時調整載入場景
+                            if (this.loadingCamera && this.loadingRenderer) {
+                                this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                                this.loadingCamera.updateProjectionMatrix();
+                                this.loadingRenderer.setPixelRatio(pixelRatio);
+                                this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                                
+                                // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
+                                const loadingCanvas = document.getElementById('loading-canvas');
+                                if (loadingCanvas) {
+                                    loadingCanvas.style.width = window.innerWidth + 'px';
+                                    loadingCanvas.style.height = window.innerHeight + 'px';
+                                }
+                            }
+                            
+                            // 重新計算所有圖層尺寸
+                            this.updateAllLayerSizes();
+                        }, 50); // 50ms延遲，平衡響應速度和穩定性
                     }
                 };
 

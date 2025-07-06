@@ -27,7 +27,7 @@
     <!-- 字體載入 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Noto+Sans+TC:wght@100;300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Noto+Serif+TC:wght@200;300;400;500&display=swap" rel="stylesheet">
 
     <style>
         * {
@@ -461,8 +461,13 @@
             z-index: 2002; /* 載入層：錯誤訊息 */
         }
 
-        /* 🌟 通用主字體樣式 */
+        /* 🌟 統一字體系統 */
         * {
+            font-family: 'Noto Serif TC', 'Cormorant Garamond', 'Georgia', 'Times New Roman', 'Times', serif;
+        }
+
+        /* 英文專用字體（僅用於需要英文襯線字體的地方） */
+        .english-font {
             font-family: 'Cormorant Garamond', 'Georgia', 'Times New Roman', 'Times', serif;
         }
 
@@ -487,7 +492,6 @@
         }
 
         .hint-content {
-            font-family: 'Cormorant Garamond Light', 'Georgia', 'Times New Roman', 'Times', serif;
             font-size: 15px;
             font-weight: 300;
             color: rgba(255, 255, 255, 0.95);
@@ -506,11 +510,6 @@
             justify-content: center;
         }
 
-        /* 中文專用字體 */
-        .hint-content[lang="zh"] {
-            font-family: 'Noto Sans TC Light', 'Cormorant Garamond Light', 'Georgia', serif;
-        }
-
         /* 主視角提示文字 */
         .main-hint {
             opacity: 1;
@@ -523,8 +522,11 @@
             filter: blur(5px);
             position: absolute;
             top: 0;
-            left: 0;
-            right: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            display: flex;
+            justify-content: center;
         }
 
         /* 過渡狀態 */
@@ -543,7 +545,7 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
 
-        /* 📱 行動裝置適配 */
+        /* 📱 行動裝置適配 - 使用設備識別而非螢幕大小 */
         @media (max-width: 768px) {
             .hint-text {
                 bottom: 10vh;
@@ -562,6 +564,28 @@
             .hint-content::before,
             .hint-content::after {
                 width: 20px;
+            }
+        }
+
+        /* 📱 觸控裝置專用設定 - 確保橫屏直屏文字大小一致 */
+        @media (hover: none) and (pointer: coarse) {
+            .hint-content {
+                font-size: 12px !important; /* 強制使用固定大小 */
+                gap: 12px !important;
+            }
+
+            .hint-content::before,
+            .hint-content::after {
+                width: 20px !important;
+            }
+
+            /* 確保局部視角提示文字在觸控裝置上正確對齊 */
+            .detail-hint {
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                width: 100% !important;
+                display: flex !important;
+                justify-content: center !important;
             }
         }
 
@@ -612,7 +636,6 @@
         }
 
         .tooltip-title {
-            font-family: 'Cormorant Garamond Light', 'Georgia', serif;
             font-size: 12px;
             font-weight: 400;
             color: rgba(255, 255, 255, 0.95);
@@ -622,21 +645,11 @@
         }
 
         .tooltip-subtitle {
-            font-family: 'Noto Sans TC Light', 'Cormorant Garamond Light', serif;
             font-size: 9px;
             font-weight: 300;
             color: rgba(255, 255, 255, 0.8);
             line-height: 1.2;
             white-space: nowrap;
-        }
-
-        /* 中文專用字體 */
-        .tooltip-title[lang="zh"] {
-            font-family: 'Noto Sans TC Light', 'Cormorant Garamond Light', serif;
-        }
-
-        .tooltip-subtitle[lang="zh"] {
-            font-family: 'Noto Sans TC Light', 'Cormorant Garamond Light', serif;
         }
 
         /* 滑鼠懸停效果 */
@@ -755,6 +768,23 @@
                 min-width: 40px;
                 max-width: 60px;
                 padding: 6px 8px;
+            }
+        }
+
+        /* 📱 觸控裝置對話框文字固定大小 - 確保橫屏直屏一致 */
+        @media (hover: none) and (pointer: coarse) {
+            .tooltip-title {
+                font-size: 10px !important; /* 強制使用固定大小 */
+            }
+            
+            .tooltip-subtitle {
+                font-size: 8px !important; /* 強制使用固定大小 */
+            }
+            
+            .tooltip-content {
+                min-width: 40px !important;
+                max-width: 60px !important;
+                padding: 6px 8px !important;
             }
         }
 

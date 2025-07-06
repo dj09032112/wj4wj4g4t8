@@ -552,7 +552,7 @@
             }
             
             .hint-content {
-                font-size: clamp(12px, 2.5vw, 18px) !important; /* 響應式文字大小 */
+                font-size: clamp(12px, 2.5vw, 14px) !important; /* 響應式文字大小 */
                 gap: clamp(8px, 1.5vw, 16px) !important;
                 white-space: nowrap;
                 max-width: 90vw;
@@ -742,20 +742,20 @@
             box-shadow: 0 0 20px rgba(220, 156, 59, 0.6);
         }
 
-        /* 📱 觸控裝置對話框文字響應式大小 - 確保視覺比例一致 */
+        /* 📱 觸控裝置對話框文字固定大小 - 確保橫屏直屏一致 */
         @media (hover: none) and (pointer: coarse) {
             .tooltip-title {
-                font-size: clamp(8px, 1.8vw, 14px) !important; /* 響應式標題 */
+                font-size: 10px !important; /* 固定標題大小 */
             }
             
             .tooltip-subtitle {
-                font-size: clamp(6px, 1.4vw, 12px) !important; /* 響應式副標題 */
+                font-size: 8px !important; /* 固定副標題大小 */
             }
             
             .tooltip-content {
-                min-width: clamp(32px, 8vw, 56px) !important;
-                max-width: clamp(48px, 12vw, 80px) !important;
-                padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 12px) !important;
+                min-width: 40px !important;
+                max-width: 60px !important;
+                padding: 6px 8px !important;
             }
         }
 

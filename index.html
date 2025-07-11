@@ -588,11 +588,37 @@
                 flex-direction: column !important;
                 align-items: center !important;
                 gap: 15px !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                z-index: 1001 !important;
+            }
+            
+            .landscape-hint.show {
+                display: flex !important;
+                opacity: 1 !important;
             }
             
             /* 隱藏原本的提示文字 */
             .hint-text:not(.landscape-hint) {
                 display: none !important;
+            }
+        }
+
+        /* 📱 強制手機直屏顯示橫向觀看提示 */
+        @media (hover: none) and (pointer: coarse) and (max-width: 768px) and (orientation: portrait) {
+            .landscape-hint {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                gap: 15px !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                z-index: 1001 !important;
+            }
+            
+            .landscape-hint.show {
+                display: flex !important;
+                opacity: 1 !important;
             }
         }
 
@@ -1380,7 +1406,7 @@
 
             detectMobile() {
                 return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                       window.innerWidth <= 768;
+                       (window.innerWidth <= 768 && 'ontouchstart' in window);
             }
 
             // 🎛️ 獲取當前螢幕方向
@@ -1984,11 +2010,26 @@
             updateHintDisplay() {
                 if (!this.hintTextElement) return;
                 
+                // 強化的行動裝置檢測
+                const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                                     ('ontouchstart' in window && window.innerWidth <= 768);
+                
                 // 檢查是否為行動裝置直屏
-                if (this.isMobile && window.innerHeight > window.innerWidth) {
+                const isPortrait = window.innerHeight > window.innerWidth;
+                
+                console.log('📱 提示顯示檢查:', {
+                    isMobile: this.isMobile,
+                    isMobileDevice,
+                    isPortrait,
+                    innerWidth: window.innerWidth,
+                    innerHeight: window.innerHeight
+                });
+                
+                if (isMobileDevice && isPortrait) {
                     // 行動裝置直屏：顯示橫向觀看提示
                     if (this.landscapeHintElement) {
                         this.landscapeHintElement.classList.add('show');
+                        console.log('📱 顯示橫向觀看提示');
                     }
                     this.hintTextElement.classList.remove('show');
                 } else {
@@ -1996,6 +2037,7 @@
                     this.hintTextElement.classList.add('show');
                     if (this.landscapeHintElement) {
                         this.landscapeHintElement.classList.remove('show');
+                        console.log('📱 隱藏橫向觀看提示');
                     }
                 }
             }
@@ -2715,6 +2757,9 @@
                     
                     // 💬 更新提示對話框位置
                     this.updateTooltipPositions();
+                    
+                    // 📱 更新提示顯示（處理橫向觀看提示）
+                    this.updateHintDisplay();
                 });
             }
 

@@ -25,7 +25,8 @@
     "return_to_main": "Click anywhere to return to main view",
     "main_view_desktop": "Move your mouse to rotate the view",
     "main_view_mobile": "Rotate your device to change the perspective",
-    "detail_view": "Click anywhere to return to main view"
+    "detail_view": "Click anywhere to return to main view",
+    "landscape_hint": "Please rotate to landscape for better experience"
   },
   "errors": {
     "webgl_not_supported": "WebGL is not supported in your browser. Please use a modern browser to view this content.",

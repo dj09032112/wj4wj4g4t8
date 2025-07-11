@@ -276,6 +276,7 @@ class I18n {
     updateHintText() {
         const mainHint = document.querySelector('.main-hint');
         const detailHint = document.querySelector('.detail-hint');
+        const landscapeHint = document.querySelector('#landscape-hint .hint-content');
         
         if (mainHint) {
             const mainKey = mainHint.getAttribute('data-i18n');
@@ -290,6 +291,14 @@ class I18n {
             if (detailKey) {
                 detailHint.textContent = this.t(detailKey);
                 detailHint.setAttribute('lang', this.currentLanguage);
+            }
+        }
+        
+        if (landscapeHint) {
+            const landscapeKey = landscapeHint.getAttribute('data-i18n');
+            if (landscapeKey) {
+                landscapeHint.textContent = this.t(landscapeKey);
+                landscapeHint.setAttribute('lang', this.currentLanguage);
             }
         }
     }

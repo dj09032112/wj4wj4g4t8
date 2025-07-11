@@ -552,7 +552,7 @@
             }
             
             .hint-content {
-                font-size: clamp(10px, 2.5vw, 14px) !important; /* 響應式文字大小 */
+                font-size: clamp(12px, 2.5vw, 14px) !important; /* 響應式文字大小 */
                 gap: clamp(8px, 1.5vw, 16px) !important;
                 white-space: nowrap;
                 max-width: 90vw;
@@ -573,6 +573,85 @@
                 width: 100% !important;
                 display: flex !important;
                 justify-content: center !important;
+            }
+        }
+
+        /* 📱 橫向觀看提示樣式 */
+        .landscape-hint {
+            display: none; /* 預設隱藏 */
+        }
+
+        /* 📱 行動裝置直屏時顯示橫向觀看提示 */
+        @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+            .landscape-hint {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                gap: 15px !important;
+            }
+            
+            /* 隱藏原本的提示文字 */
+            .hint-text:not(.landscape-hint) {
+                display: none !important;
+            }
+        }
+
+        /* 📱 手機旋轉圖示樣式 */
+        .phone-rotate-icon {
+            width: 40px;
+            height: 54px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: phoneRotate 2s ease-in-out infinite;
+        }
+
+        .phone-svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+        }
+
+        .phone-body {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.95);
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .phone-notch {
+            fill: rgba(255, 255, 255, 0.95);
+        }
+
+        .rotate-arrow {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.95);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            animation: arrowPulse 1.5s ease-in-out infinite;
+        }
+
+        /* 📱 手機旋轉動畫 */
+        @keyframes phoneRotate {
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+            50% {
+                transform: rotate(-90deg);
+            }
+        }
+
+        /* 📱 箭頭脈衝動畫 */
+        @keyframes arrowPulse {
+            0%, 100% {
+                opacity: 0.7;
+                stroke-width: 2;
+            }
+            50% {
+                opacity: 1;
+                stroke-width: 2.5;
             }
         }
 
@@ -1098,6 +1177,24 @@
             <!-- 局部視角提示文字 -->
             <span class="hint-content detail-hint" data-i18n="interaction.detail_view">Click anywhere to return to main view</span>
         </div>
+        
+        <!-- 橫向觀看提示文字 -->
+        <div id="landscape-hint" class="hint-text landscape-hint">
+            <!-- 手機旋轉圖示 -->
+            <div class="phone-rotate-icon">
+                <svg viewBox="0 0 60 100" class="phone-svg">
+                    <!-- 手機外框 -->
+                    <rect x="12" y="20" width="36" height="60" rx="6" ry="6" class="phone-body"/>
+                    <!-- 劉海 -->
+                    <rect x="25" y="24" width="10" height="3" rx="1.5" ry="1.5" class="phone-notch"/>
+                    <!-- 左上角箭頭 -->
+                    <path d="M 56 29 L 56 20 Q 56 11 47 11 L 38 11 M 43 6 L 38 11 L 43 16" class="rotate-arrow"/>
+                    <!-- 右下角箭頭 -->
+                    <path d="M 4 71 L 4 80 Q 4 89 13 89 L 22 89 M 17 94 L 22 89 L 17 84" class="rotate-arrow"/>
+                </svg>
+            </div>
+            <span class="hint-content" data-i18n="interaction.landscape_hint">請橫向觀看以獲得更好的體驗</span>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1223,6 +1320,7 @@
 
                 // 💡 提示文字系統
                 this.hintTextElement = null;               // 提示文字元素
+                this.landscapeHintElement = null;          // 橫向觀看提示元素
                 this.currentHintType = null;               // 當前提示類型
 
                 // 💬 按鈕提示系統
@@ -1689,6 +1787,8 @@
             // 💡 初始化提示文字系統
             initHintText() {
                 this.hintTextElement = document.getElementById('hint-text');
+                this.landscapeHintElement = document.getElementById('landscape-hint');
+                
                 if (this.hintTextElement) {
                     // 初始化文字內容
                     this.initHintTextContent();
@@ -1720,6 +1820,16 @@
                     detailHint.setAttribute('data-i18n', 'interaction.detail_view');
                     detailHint.setAttribute('lang', this.i18n.getCurrentLanguage());
                 }
+
+                // 初始化橫向觀看提示文字
+                if (this.landscapeHintElement) {
+                    const landscapeHint = this.landscapeHintElement.querySelector('.hint-content');
+                    if (landscapeHint) {
+                        landscapeHint.textContent = this.i18n.t('interaction.landscape_hint');
+                        landscapeHint.setAttribute('data-i18n', 'interaction.landscape_hint');
+                        landscapeHint.setAttribute('lang', this.i18n.getCurrentLanguage());
+                    }
+                }
             }
 
             // 💡 顯示主視角提示
@@ -1727,19 +1837,33 @@
                 if (!this.hintTextElement) return;
                 
                 this.currentHintType = 'main';
-                this.hintTextElement.classList.add('show');
                 
-                // 確保主視角文字顯示，局部視角文字隱藏
-                const mainHint = this.hintTextElement.querySelector('.main-hint');
-                const detailHint = this.hintTextElement.querySelector('.detail-hint');
-                
-                if (mainHint) {
-                    mainHint.style.opacity = '1';
-                    mainHint.style.filter = 'blur(0px)';
-                }
-                if (detailHint) {
-                    detailHint.style.opacity = '0';
-                    detailHint.style.filter = 'blur(5px)';
+                // 檢查是否為行動裝置直屏
+                if (this.isMobile && window.innerHeight > window.innerWidth) {
+                    // 行動裝置直屏：顯示橫向觀看提示
+                    if (this.landscapeHintElement) {
+                        this.landscapeHintElement.classList.add('show');
+                    }
+                    this.hintTextElement.classList.remove('show');
+                } else {
+                    // 桌面裝置或行動裝置橫屏：顯示正常提示
+                    this.hintTextElement.classList.add('show');
+                    if (this.landscapeHintElement) {
+                        this.landscapeHintElement.classList.remove('show');
+                    }
+                    
+                    // 確保主視角文字顯示，局部視角文字隱藏
+                    const mainHint = this.hintTextElement.querySelector('.main-hint');
+                    const detailHint = this.hintTextElement.querySelector('.detail-hint');
+                    
+                    if (mainHint) {
+                        mainHint.style.opacity = '1';
+                        mainHint.style.filter = 'blur(0px)';
+                    }
+                    if (detailHint) {
+                        detailHint.style.opacity = '0';
+                        detailHint.style.filter = 'blur(5px)';
+                    }
                 }
             }
 
@@ -1748,19 +1872,33 @@
                 if (!this.hintTextElement) return;
                 
                 this.currentHintType = 'detail';
-                this.hintTextElement.classList.add('show');
                 
-                // 確保局部視角文字顯示，主視角文字隱藏
-                const mainHint = this.hintTextElement.querySelector('.main-hint');
-                const detailHint = this.hintTextElement.querySelector('.detail-hint');
-                
-                if (mainHint) {
-                    mainHint.style.opacity = '0';
-                    mainHint.style.filter = 'blur(5px)';
-                }
-                if (detailHint) {
-                    detailHint.style.opacity = '1';
-                    detailHint.style.filter = 'blur(0px)';
+                // 檢查是否為行動裝置直屏
+                if (this.isMobile && window.innerHeight > window.innerWidth) {
+                    // 行動裝置直屏：顯示橫向觀看提示
+                    if (this.landscapeHintElement) {
+                        this.landscapeHintElement.classList.add('show');
+                    }
+                    this.hintTextElement.classList.remove('show');
+                } else {
+                    // 桌面裝置或行動裝置橫屏：顯示正常提示
+                    this.hintTextElement.classList.add('show');
+                    if (this.landscapeHintElement) {
+                        this.landscapeHintElement.classList.remove('show');
+                    }
+                    
+                    // 確保局部視角文字顯示，主視角文字隱藏
+                    const mainHint = this.hintTextElement.querySelector('.main-hint');
+                    const detailHint = this.hintTextElement.querySelector('.detail-hint');
+                    
+                    if (mainHint) {
+                        mainHint.style.opacity = '0';
+                        mainHint.style.filter = 'blur(5px)';
+                    }
+                    if (detailHint) {
+                        detailHint.style.opacity = '1';
+                        detailHint.style.filter = 'blur(0px)';
+                    }
                 }
             }
 
@@ -1836,6 +1974,29 @@
             hideHintText() {
                 if (this.hintTextElement) {
                     this.hintTextElement.classList.remove('show');
+                }
+                if (this.landscapeHintElement) {
+                    this.landscapeHintElement.classList.remove('show');
+                }
+            }
+
+            // 📱 更新提示顯示（根據螢幕方向）
+            updateHintDisplay() {
+                if (!this.hintTextElement) return;
+                
+                // 檢查是否為行動裝置直屏
+                if (this.isMobile && window.innerHeight > window.innerWidth) {
+                    // 行動裝置直屏：顯示橫向觀看提示
+                    if (this.landscapeHintElement) {
+                        this.landscapeHintElement.classList.add('show');
+                    }
+                    this.hintTextElement.classList.remove('show');
+                } else {
+                    // 桌面裝置或行動裝置橫屏：顯示正常提示
+                    this.hintTextElement.classList.add('show');
+                    if (this.landscapeHintElement) {
+                        this.landscapeHintElement.classList.remove('show');
+                    }
                 }
             }
 
@@ -2390,6 +2551,9 @@
                             
                             // 💬 更新提示對話框位置
                             this.updateTooltipPositions();
+                            
+                            // 📱 重新檢查提示文字顯示（處理橫向觀看提示）
+                            this.updateHintDisplay();
                             
                             // 強制觸發resize事件處理邏輯
                             this.camera.aspect = window.innerWidth / window.innerHeight;

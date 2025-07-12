@@ -116,6 +116,44 @@
             max-height: 100vh;
         }
 
+        /* 🖥️ 全螢幕模式處理 */
+        :fullscreen {
+            background: #000000;
+        }
+        
+        :-webkit-full-screen {
+            background: #000000;
+        }
+        
+        :-moz-full-screen {
+            background: #000000;
+        }
+        
+        :-ms-fullscreen {
+            background: #000000;
+        }
+        
+        /* 全螢幕模式下的容器處理 */
+        :fullscreen #container {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        :-webkit-full-screen #container {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        :-moz-full-screen #container {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        :-ms-fullscreen #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
         /* 🎭 三層級架構 Z-Index 定義 */
         /* 層級 3: UI 層 (z-index: 3000+) */
         #back-button {
@@ -5108,6 +5146,54 @@
             }
 
             // 🔴 ================== 點點過渡透明度控制系統結束 ==================
+
+            // 🖥️ 全螢幕模式視窗大小處理
+            handleFullscreenResize() {
+                console.log('🖥️ 全螢幕模式視窗大小變化處理');
+                
+                // 強制重新計算相機比例
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                
+                // 重新設定渲染器尺寸
+                const maxRatio = 2;
+                const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+                this.renderer.setPixelRatio(pixelRatio);
+                this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+                
+                // 更新canvas元素顯示尺寸
+                const canvas = document.getElementById('canvas');
+                if (canvas) {
+                    canvas.style.width = window.innerWidth + 'px';
+                    canvas.style.height = window.innerHeight + 'px';
+                }
+                
+                // 同時更新載入場景
+                if (this.loadingCamera && this.loadingRenderer) {
+                    this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                    this.loadingCamera.updateProjectionMatrix();
+                    this.loadingRenderer.setPixelRatio(pixelRatio);
+                    this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                    
+                    const loadingCanvas = document.getElementById('loading-canvas');
+                    if (loadingCanvas) {
+                        loadingCanvas.style.width = window.innerWidth + 'px';
+                        loadingCanvas.style.height = window.innerHeight + 'px';
+                    }
+                }
+                
+                // 重新計算所有圖層尺寸
+                this.updateAllLayerSizes();
+                
+                // 更新按鈕顯示狀態
+                this.monitorControlMode();
+                
+                // 更新提示對話框位置
+                this.updateTooltipPositions();
+                
+                // 強制重新渲染
+                this.renderer.render(this.scene, this.camera);
+            }
         }
 
         // 全域變數用於存取ParallaxViewer實例
@@ -5272,9 +5358,33 @@
             }
             
             // 監聽全螢幕狀態變化
-            document.addEventListener('fullscreenchange', updateFullscreenIcon);
-            document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
-            document.addEventListener('msfullscreenchange', updateFullscreenIcon);
+            document.addEventListener('fullscreenchange', () => {
+                updateFullscreenIcon();
+                // 全螢幕狀態變化時強制重新計算尺寸
+                setTimeout(() => {
+                    if (parallaxViewerInstance) {
+                        parallaxViewerInstance.handleFullscreenResize();
+                    }
+                }, 100);
+            });
+            document.addEventListener('webkitfullscreenchange', () => {
+                updateFullscreenIcon();
+                // 全螢幕狀態變化時強制重新計算尺寸
+                setTimeout(() => {
+                    if (parallaxViewerInstance) {
+                        parallaxViewerInstance.handleFullscreenResize();
+                    }
+                }, 100);
+            });
+            document.addEventListener('msfullscreenchange', () => {
+                updateFullscreenIcon();
+                // 全螢幕狀態變化時強制重新計算尺寸
+                setTimeout(() => {
+                    if (parallaxViewerInstance) {
+                        parallaxViewerInstance.handleFullscreenResize();
+                    }
+                }, 100);
+            });
             
             // 初始化圖示
             updateFullscreenIcon();

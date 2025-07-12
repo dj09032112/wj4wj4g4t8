@@ -745,8 +745,8 @@
             display: none; /* 預設隱藏 */
         }
 
-        /* 📱 行動裝置直屏時顯示橫向觀看提示 */
-        @media screen and (max-width: 1024px) and (orientation: portrait) {
+        /* 📱 觸控裝置直屏時顯示橫向觀看提示 */
+        @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
             .landscape-hint {
                 display: flex !important;
                 flex-direction: column !important;
@@ -760,18 +760,14 @@
             }
         }
 
-        /* 📱 備用檢測：使用觸控裝置媒體查詢 */
-        @media (hover: none) and (orientation: portrait) {
+        /* 📱 確保觸控裝置橫屏時顯示正常提示文字 */
+        @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
             .landscape-hint {
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: center !important;
-                gap: 15px !important;
+                display: none !important;
             }
             
-            /* 隱藏原本的提示文字 */
             .hint-text:not(.landscape-hint) {
-                display: none !important;
+                display: flex !important;
             }
         }
 

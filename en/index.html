@@ -745,7 +745,7 @@
             display: none; /* 預設隱藏 */
         }
 
-        /* 📱 行動裝置直屏時顯示橫向觀看提示 */
+        /* 📱 行動裝置直屏時顯示橫向觀看提示 - 統一邏輯支援手機和平板 */
         @media screen and (max-width: 1024px) and (orientation: portrait) {
             .landscape-hint {
                 display: flex !important;
@@ -760,8 +760,8 @@
             }
         }
 
-        /* 📱 備用檢測：使用觸控裝置媒體查詢 */
-        @media (hover: none) and (orientation: portrait) {
+        /* 📱 觸控裝置直屏時顯示橫向觀看提示 - 確保iPad等平板也能正確顯示 */
+        @media (hover: none) and (pointer: coarse) and (orientation: portrait) {
             .landscape-hint {
                 display: flex !important;
                 flex-direction: column !important;
@@ -772,6 +772,30 @@
             /* 隱藏原本的提示文字 */
             .hint-text:not(.landscape-hint) {
                 display: none !important;
+            }
+        }
+
+        /* 📱 確保橫屏時隱藏橫向觀看提示 */
+        @media screen and (max-width: 1024px) and (orientation: landscape) {
+            .landscape-hint {
+                display: none !important;
+            }
+            
+            /* 確保正常提示文字在橫屏時顯示 */
+            .hint-text:not(.landscape-hint) {
+                display: flex !important;
+            }
+        }
+
+        /* 📱 觸控裝置橫屏時隱藏橫向觀看提示 */
+        @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+            .landscape-hint {
+                display: none !important;
+            }
+            
+            /* 確保正常提示文字在觸控裝置橫屏時顯示 */
+            .hint-text:not(.landscape-hint) {
+                display: flex !important;
             }
         }
 

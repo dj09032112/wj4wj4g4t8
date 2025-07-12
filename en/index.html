@@ -59,6 +59,13 @@
             max-width: 100vw;
             max-height: 100vh;
             overflow: hidden;
+            /* 🔧 修正：防止方向變化時出現白色區域 */
+            background: #000000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
         
         /* 📱 高解析螢幕支援：確保元素在高解析螢幕上清晰顯示 */
@@ -103,6 +110,16 @@
             min-height: 100vh;
             max-width: 100vw;
             max-height: 100vh;
+            /* 🔧 修正：防止方向變化時出現白色區域 */
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            /* 🔧 修正：確保背景覆蓋整個視口 */
+            background-attachment: fixed;
+            background-size: cover;
+            background-position: center;
         }
 
         #container {
@@ -114,44 +131,9 @@
             min-height: 100vh;
             max-width: 100vw;
             max-height: 100vh;
-        }
-
-        /* 🖥️ 全螢幕模式處理 */
-        :fullscreen {
+            /* 🔧 修正：防止方向變化時出現白色區域 */
             background: #000000;
-        }
-        
-        :-webkit-full-screen {
-            background: #000000;
-        }
-        
-        :-moz-full-screen {
-            background: #000000;
-        }
-        
-        :-ms-fullscreen {
-            background: #000000;
-        }
-        
-        /* 全螢幕模式下的容器處理 */
-        :fullscreen #container {
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        :-webkit-full-screen #container {
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        :-moz-full-screen #container {
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        :-ms-fullscreen #container {
-            width: 100vw;
-            height: 100vh;
+            overflow: hidden;
         }
 
         /* 🎭 三層級架構 Z-Index 定義 */
@@ -2706,6 +2688,44 @@
                 requestAnimationFrame(animate);
             }
 
+            // 🔧 立即處理方向變化，防止白色區域
+            handleImmediateOrientationChange() {
+                // 立即更新視口尺寸
+                const canvas = document.getElementById('canvas');
+                const loadingCanvas = document.getElementById('loading-canvas');
+                
+                if (canvas) {
+                    canvas.style.width = window.innerWidth + 'px';
+                    canvas.style.height = window.innerHeight + 'px';
+                }
+                
+                if (loadingCanvas) {
+                    loadingCanvas.style.width = window.innerWidth + 'px';
+                    loadingCanvas.style.height = window.innerHeight + 'px';
+                }
+                
+                // 立即更新相機和渲染器
+                if (this.camera) {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                }
+                
+                if (this.renderer) {
+                    this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+                }
+                
+                if (this.loadingCamera) {
+                    this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
+                    this.loadingCamera.updateProjectionMatrix();
+                }
+                
+                if (this.loadingRenderer) {
+                    this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
+                }
+                
+                console.log('🔧 立即處理方向變化完成');
+            }
+
             // 🔄 螢幕方向變化平滑過渡功能
             smoothOrientationTransition() {
                 // 如果正在重置或過渡中，不執行方向過渡
@@ -2868,6 +2888,9 @@
                     if (newOrientation !== this.currentOrientation) {
                         console.log(`🔄 螢幕方向變化: ${this.currentOrientation} → ${newOrientation}`);
                         this.currentOrientation = newOrientation;
+                        
+                        // 🔧 修正：立即處理視口變化，防止白色區域
+                        this.handleImmediateOrientationChange();
                         
                         // 🔧 修正：使用平滑過渡而非直接重設基準值
                         this.smoothOrientationTransition();
@@ -5146,54 +5169,6 @@
             }
 
             // 🔴 ================== 點點過渡透明度控制系統結束 ==================
-
-            // 🖥️ 全螢幕模式視窗大小處理
-            handleFullscreenResize() {
-                console.log('🖥️ 全螢幕模式視窗大小變化處理');
-                
-                // 強制重新計算相機比例
-                this.camera.aspect = window.innerWidth / window.innerHeight;
-                this.camera.updateProjectionMatrix();
-                
-                // 重新設定渲染器尺寸
-                const maxRatio = 2;
-                const pixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
-                this.renderer.setPixelRatio(pixelRatio);
-                this.renderer.setSize(window.innerWidth, window.innerHeight, false);
-                
-                // 更新canvas元素顯示尺寸
-                const canvas = document.getElementById('canvas');
-                if (canvas) {
-                    canvas.style.width = window.innerWidth + 'px';
-                    canvas.style.height = window.innerHeight + 'px';
-                }
-                
-                // 同時更新載入場景
-                if (this.loadingCamera && this.loadingRenderer) {
-                    this.loadingCamera.aspect = window.innerWidth / window.innerHeight;
-                    this.loadingCamera.updateProjectionMatrix();
-                    this.loadingRenderer.setPixelRatio(pixelRatio);
-                    this.loadingRenderer.setSize(window.innerWidth, window.innerHeight, false);
-                    
-                    const loadingCanvas = document.getElementById('loading-canvas');
-                    if (loadingCanvas) {
-                        loadingCanvas.style.width = window.innerWidth + 'px';
-                        loadingCanvas.style.height = window.innerHeight + 'px';
-                    }
-                }
-                
-                // 重新計算所有圖層尺寸
-                this.updateAllLayerSizes();
-                
-                // 更新按鈕顯示狀態
-                this.monitorControlMode();
-                
-                // 更新提示對話框位置
-                this.updateTooltipPositions();
-                
-                // 強制重新渲染
-                this.renderer.render(this.scene, this.camera);
-            }
         }
 
         // 全域變數用於存取ParallaxViewer實例
@@ -5358,33 +5333,9 @@
             }
             
             // 監聽全螢幕狀態變化
-            document.addEventListener('fullscreenchange', () => {
-                updateFullscreenIcon();
-                // 全螢幕狀態變化時強制重新計算尺寸
-                setTimeout(() => {
-                    if (parallaxViewerInstance) {
-                        parallaxViewerInstance.handleFullscreenResize();
-                    }
-                }, 100);
-            });
-            document.addEventListener('webkitfullscreenchange', () => {
-                updateFullscreenIcon();
-                // 全螢幕狀態變化時強制重新計算尺寸
-                setTimeout(() => {
-                    if (parallaxViewerInstance) {
-                        parallaxViewerInstance.handleFullscreenResize();
-                    }
-                }, 100);
-            });
-            document.addEventListener('msfullscreenchange', () => {
-                updateFullscreenIcon();
-                // 全螢幕狀態變化時強制重新計算尺寸
-                setTimeout(() => {
-                    if (parallaxViewerInstance) {
-                        parallaxViewerInstance.handleFullscreenResize();
-                    }
-                }, 100);
-            });
+            document.addEventListener('fullscreenchange', updateFullscreenIcon);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+            document.addEventListener('msfullscreenchange', updateFullscreenIcon);
             
             // 初始化圖示
             updateFullscreenIcon();

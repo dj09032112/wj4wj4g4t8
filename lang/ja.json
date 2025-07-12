@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "title": "パララックス ラビット - dj0903",
+    "og_title": "パララックス ラビット | dj0903の初めてのインタラクティブウェブプロジェクト！",
+    "og_description": "ウェブ技術で少し没入感のある物語空間を作ろうとしています〜 コンピューター、スマートフォン、タブレットなどのデバイスでのインタラクティブな操作をサポートします。",
+    "og_url": "https://dj0903-parallax-rabbit.vercel.app/"
+  },
+
+  "ui": {
+    "back": "戻る",
+    "fullscreen": "全画面",
+    "exit_fullscreen": "フルスクリーン終了",
+    "reset_view": "リセット",
+    "click_to_close": "タップで閉じる"
+  },
+  "gyro": {
+    "title": "ジャイロスコープ権限",
+    "description": "このウェブサイトは、インタラクティブな体験を向上させるためにデバイスの向きを使用します。より没入感のある体験を提供するために、アクセスを許可してください。",
+    "allow": "許可",
+    "deny": "拒否"
+  },
+  "interaction": {
+    "click_to_explore": "クリックして探索",
+    "tap_to_explore": "タップして探索",
+    "return_to_main": "どこでもクリックしてメインビューに戻る",
+    "main_view_desktop": "マウスを動かしてビューを回転",
+    "main_view_mobile": "デバイスを回転して視点を変更",
+    "detail_view": "どこでもクリックしてメインビューに戻る",
+    "landscape_hint": "より良い体験のために横向きに回転してください"
+  },
+  "errors": {
+    "webgl_not_supported": "お使いのブラウザはWebGLをサポートしていません。このコンテンツを表示するには、モダンブラウザを使用してください。",
+    "texture_load_failed": "画像リソースの読み込みに失敗しました。インターネット接続を確認してページを更新してください。",
+    "device_not_supported": "お使いのデバイスは完全にサポートされていない可能性があります。一部の機能が制限される場合があります。",
+    "cors_message": "CORSの問題を回避するため、ローカルサーバーを使用してこのウェブページを開いてください",
+    "suggested_solutions": "推奨される解決策：",
+    "python_solution": "Pythonを使用：",
+    "nodejs_solution": "Node.jsを使用：",
+    "vscode_solution": "VS Code Live Server拡張機能を使用"
+  }
+} 

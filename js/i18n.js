@@ -1,11 +1,11 @@
 /**
  * 國際化 (i18n) 系統
- * 自動檢測瀏覽器語言並載入對應的語言檔案
+ * 支援靜態多語言架構，從URL路徑檢測語言
  */
 
 class I18n {
     constructor() {
-        this.currentLanguage = 'en'; // 預設語言
+        this.currentLanguage = 'zh'; // 預設語言改為中文
         this.translations = {}; // 翻譯內容
         this.languageMap = {
             'zh': 'zh',
@@ -14,7 +14,9 @@ class I18n {
             'zh-CN': 'zh',
             'en': 'en',
             'en-US': 'en',
-            'en-GB': 'en'
+            'en-GB': 'en',
+            'ja': 'ja',
+            'ja-JP': 'ja'
         };
         
         this.init();
@@ -25,8 +27,8 @@ class I18n {
      */
     async init() {
         try {
-            // 檢測瀏覽器語言
-            this.detectLanguage();
+            // 從URL路徑檢測語言
+            this.detectLanguageFromPath();
             
             // 載入語言檔案
             await this.loadLanguageFile();
@@ -37,35 +39,30 @@ class I18n {
             console.log(`🌍 i18n系統已初始化，當前語言: ${this.currentLanguage}`);
         } catch (error) {
             console.error('❌ i18n系統初始化失敗:', error);
-            // 使用預設英文
-            this.currentLanguage = 'en';
+            // 使用預設中文
+            this.currentLanguage = 'zh';
             await this.loadLanguageFile();
         }
     }
 
     /**
-     * 檢測瀏覽器語言
+     * 從URL路徑檢測語言
      */
-    detectLanguage() {
-        // 優先使用 localStorage 中儲存的語言設定
-        const savedLanguage = localStorage.getItem('preferred_language');
-        if (savedLanguage && this.languageMap[savedLanguage]) {
-            this.currentLanguage = this.languageMap[savedLanguage];
-            return;
-        }
-
-        // 檢測瀏覽器語言
-        const browserLanguages = navigator.languages || [navigator.language];
+    detectLanguageFromPath() {
+        const path = window.location.pathname;
+        const pathSegments = path.split('/').filter(segment => segment.length > 0);
         
-        for (const lang of browserLanguages) {
-            const mappedLang = this.languageMap[lang];
-            if (mappedLang) {
-                this.currentLanguage = mappedLang;
-                // 儲存語言偏好
-                localStorage.setItem('preferred_language', lang);
-                break;
+        // 檢查第一個路徑段是否為語言代碼
+        if (pathSegments.length > 0) {
+            const possibleLang = pathSegments[0];
+            if (['zh', 'en', 'ja'].includes(possibleLang)) {
+                this.currentLanguage = possibleLang;
+                return;
             }
         }
+        
+        // 如果URL沒有語言路徑，使用預設中文
+        this.currentLanguage = 'zh';
     }
 
     /**
@@ -73,21 +70,39 @@ class I18n {
      */
     async loadLanguageFile() {
         try {
-            const response = await fetch(`lang/${this.currentLanguage}.json`);
+            // 根據當前路徑調整語言檔案路徑
+            const langPath = this.getLanguageFilePath();
+            const response = await fetch(langPath);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             this.translations = await response.json();
         } catch (error) {
             console.error(`❌ 載入語言檔案失敗 (${this.currentLanguage}):`, error);
-            // 如果載入失敗，嘗試載入英文作為備用
-            if (this.currentLanguage !== 'en') {
-                this.currentLanguage = 'en';
+            // 如果載入失敗，嘗試載入中文作為備用
+            if (this.currentLanguage !== 'zh') {
+                this.currentLanguage = 'zh';
                 await this.loadLanguageFile();
             } else {
                 throw error;
             }
         }
+    }
+
+    /**
+     * 取得語言檔案路徑
+     */
+    getLanguageFilePath() {
+        const path = window.location.pathname;
+        const pathSegments = path.split('/').filter(segment => segment.length > 0);
+        
+        // 如果在語言子目錄中，使用相對路徑
+        if (pathSegments.length > 0 && ['zh', 'en', 'ja'].includes(pathSegments[0])) {
+            return `../lang/${this.currentLanguage}.json`;
+        }
+        
+        // 如果在根目錄，使用直接路徑
+        return `lang/${this.currentLanguage}.json`;
     }
 
     /**

@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     
     <!-- SEO 基礎設定 -->
     <title>視差兔兔 - dj0903</title>
@@ -52,19 +52,13 @@
         
         html {
             /* 📱 確保html在方向變化時正確處理 */
-            width: 100vw;
-            height: 100vh;
-            min-width: 100vw;
-            min-height: 100vh;
-            max-width: 100vw;
-            max-height: 100vh;
+            width: 100%;
+            height: 100%;
+            min-width: 100%;
+            min-height: 100%;
+            max-width: 100%;
+            max-height: 100%;
             overflow: hidden;
-            /* 📱 平板全螢幕旋轉修復：防止視口計算錯誤 */
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
         }
         
         /* 📱 高解析螢幕支援：確保元素在高解析螢幕上清晰顯示 */
@@ -103,35 +97,23 @@
             overflow: hidden;
             font-family: Arial, sans-serif;
             /* 📱 確保body在方向變化時正確處理 */
-            width: 100vw;
-            height: 100vh;
-            min-width: 100vw;
-            min-height: 100vh;
-            max-width: 100vw;
-            max-height: 100vh;
-            /* 📱 平板全螢幕旋轉修復：防止視口計算錯誤 */
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            width: 100%;
+            height: 100%;
+            min-width: 100%;
+            min-height: 100%;
+            max-width: 100%;
+            max-height: 100%;
         }
 
         #container {
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             position: relative;
             /* 📱 確保容器在方向變化時正確處理 */
-            min-width: 100vw;
-            min-height: 100vh;
-            max-width: 100vw;
-            max-height: 100vh;
-            /* 📱 平板全螢幕旋轉修復：防止視口計算錯誤 */
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            max-width: 100%;
+            max-height: 100%;
         }
 
         /* 🎭 三層級架構 Z-Index 定義 */
@@ -1103,8 +1085,8 @@
         #canvas {
             display: block;
             z-index: 1000; /* 內容層：最下層 */
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             /* 📱 高解析螢幕支援：確保canvas在高解析螢幕上清晰 */
             image-rendering: -webkit-optimize-contrast;
             image-rendering: -moz-crisp-edges;
@@ -1116,8 +1098,8 @@
         #loading-canvas {
             display: block;
             z-index: 2000; /* 載入層 */
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             /* 📱 高解析螢幕支援：確保載入canvas在高解析螢幕上清晰 */
             image-rendering: -webkit-optimize-contrast;
             image-rendering: -moz-crisp-edges;
@@ -1201,6 +1183,24 @@
                 filter: drop-shadow(0 0 20px rgba(244, 227, 212, 1.0));
                 transform: scale(0.85);
                 transition: all 0.1s ease;
+            }
+        }
+
+        /* 📱 平板全螢幕模式優化：防止方向變化時的視口問題 */
+        @media screen and (min-width: 768px) and (max-width: 1024px) {
+            html, body, #container {
+                width: 100% !important;
+                height: 100% !important;
+                min-width: 100% !important;
+                min-height: 100% !important;
+                max-width: 100% !important;
+                max-height: 100% !important;
+                overflow: hidden !important;
+            }
+            
+            #canvas, #loading-canvas {
+                width: 100% !important;
+                height: 100% !important;
             }
         }
 
@@ -2852,18 +2852,10 @@
                         // 🔧 修正：使用平滑過渡而非直接重設基準值
                         this.smoothOrientationTransition();
                         
-                        // 📱 平板全螢幕旋轉修復：強制重置視口
-                        const forceViewportReset = () => {
-                            console.log('🔄 強制重置視口尺寸');
-                            
-                            // 強制重新計算視口尺寸
-                            const viewport = document.querySelector('meta[name="viewport"]');
-                            if (viewport) {
-                                viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover');
-                            }
-                            
-                            // 強制觸發視窗重新計算
-                            window.dispatchEvent(new Event('resize'));
+                        // 📱 修正：螢幕方向變化時強制重新計算容器大小
+                        // 短延遲執行，確保DOM更新完成但避免過長延遲
+                        setTimeout(() => {
+                            console.log('🔄 方向變化後重新計算容器大小');
                             
                             // 💬 更新提示對話框位置
                             this.updateTooltipPositions();
@@ -2884,8 +2876,8 @@
                             // 📱 確保canvas元素在DOM中的顯示尺寸正確
                             const canvas = document.getElementById('canvas');
                             if (canvas) {
-                                canvas.style.width = window.innerWidth + 'px';
-                                canvas.style.height = window.innerHeight + 'px';
+                                canvas.style.width = '100%';
+                                canvas.style.height = '100%';
                             }
                             
                             // 同時調整載入場景
@@ -2898,19 +2890,14 @@
                                 // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
                                 const loadingCanvas = document.getElementById('loading-canvas');
                                 if (loadingCanvas) {
-                                    loadingCanvas.style.width = window.innerWidth + 'px';
-                                    loadingCanvas.style.height = window.innerHeight + 'px';
+                                    loadingCanvas.style.width = '100%';
+                                    loadingCanvas.style.height = '100%';
                                 }
                             }
                             
                             // 重新計算所有圖層尺寸
                             this.updateAllLayerSizes();
-                        };
-                        
-                        // 📱 平板全螢幕旋轉修復：使用多重延遲確保視口正確重置
-                        setTimeout(forceViewportReset, 10);  // 立即執行
-                        setTimeout(forceViewportReset, 100); // 100ms後再次執行
-                        setTimeout(forceViewportReset, 300); // 300ms後最後執行
+                        }, 50); // 50ms延遲，平衡響應速度和穩定性
                     }
                 };
 
@@ -3009,8 +2996,8 @@
                     // 📱 確保canvas元素在DOM中的顯示尺寸正確
                     const canvas = document.getElementById('canvas');
                     if (canvas) {
-                        canvas.style.width = window.innerWidth + 'px';
-                        canvas.style.height = window.innerHeight + 'px';
+                        canvas.style.width = '100%';
+                        canvas.style.height = '100%';
                     }
                     
                     // 同時調整載入場景
@@ -3023,8 +3010,8 @@
                         // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
                         const loadingCanvas = document.getElementById('loading-canvas');
                         if (loadingCanvas) {
-                            loadingCanvas.style.width = window.innerWidth + 'px';
-                            loadingCanvas.style.height = window.innerHeight + 'px';
+                            loadingCanvas.style.width = '100%';
+                            loadingCanvas.style.height = '100%';
                         }
                     }
 

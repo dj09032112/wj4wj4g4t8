@@ -752,6 +752,7 @@
                 flex-direction: column !important;
                 align-items: center !important;
                 gap: 15px !important;
+                opacity: 1 !important;
             }
             
             /* 隱藏原本的提示文字 */
@@ -768,6 +769,7 @@
             
             .hint-text:not(.landscape-hint) {
                 display: flex !important;
+                opacity: 1 !important;
             }
         }
 
@@ -2058,6 +2060,8 @@
                     // 載入完成後顯示主視角提示
                     setTimeout(() => {
                         this.showMainHint();
+                        // 確保根據當前螢幕方向正確顯示提示
+                        this.updateHintDisplay();
                     }, 2000); // 2秒後顯示提示
                 }
             }
@@ -2100,15 +2104,19 @@
                 
                 this.currentHintType = 'main';
                 
-                // 檢查是否為行動裝置直屏（使用更可靠的檢測）
-                if (this.isPortraitMobile()) {
-                    // 行動裝置直屏：顯示橫向觀看提示
+                // 檢查是否為觸控裝置且為直屏（使用CSS媒體查詢的邏輯）
+                const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const isPortrait = window.innerHeight > window.innerWidth;
+                const shouldShowLandscapeHint = isTouchDevice && isPortrait;
+                
+                if (shouldShowLandscapeHint) {
+                    // 觸控裝置直屏：顯示橫向觀看提示
                     if (this.landscapeHintElement) {
                         this.landscapeHintElement.classList.add('show');
                     }
                     this.hintTextElement.classList.remove('show');
                 } else {
-                    // 桌面裝置或行動裝置橫屏：顯示正常提示
+                    // 桌面裝置或觸控裝置橫屏：顯示正常提示
                     this.hintTextElement.classList.add('show');
                     if (this.landscapeHintElement) {
                         this.landscapeHintElement.classList.remove('show');
@@ -2135,15 +2143,19 @@
                 
                 this.currentHintType = 'detail';
                 
-                // 檢查是否為行動裝置直屏（使用更可靠的檢測）
-                if (this.isPortraitMobile()) {
-                    // 行動裝置直屏：顯示橫向觀看提示
+                // 檢查是否為觸控裝置且為直屏（使用CSS媒體查詢的邏輯）
+                const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const isPortrait = window.innerHeight > window.innerWidth;
+                const shouldShowLandscapeHint = isTouchDevice && isPortrait;
+                
+                if (shouldShowLandscapeHint) {
+                    // 觸控裝置直屏：顯示橫向觀看提示
                     if (this.landscapeHintElement) {
                         this.landscapeHintElement.classList.add('show');
                     }
                     this.hintTextElement.classList.remove('show');
                 } else {
-                    // 桌面裝置或行動裝置橫屏：顯示正常提示
+                    // 桌面裝置或觸控裝置橫屏：顯示正常提示
                     this.hintTextElement.classList.add('show');
                     if (this.landscapeHintElement) {
                         this.landscapeHintElement.classList.remove('show');
@@ -2246,15 +2258,19 @@
             updateHintDisplay() {
                 if (!this.hintTextElement) return;
                 
-                // 檢查是否為行動裝置直屏（使用更可靠的檢測）
-                if (this.isPortraitMobile()) {
-                    // 行動裝置直屏：顯示橫向觀看提示
+                // 檢查是否為觸控裝置且為直屏（使用CSS媒體查詢的邏輯）
+                const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const isPortrait = window.innerHeight > window.innerWidth;
+                const shouldShowLandscapeHint = isTouchDevice && isPortrait;
+                
+                if (shouldShowLandscapeHint) {
+                    // 觸控裝置直屏：顯示橫向觀看提示
                     if (this.landscapeHintElement) {
                         this.landscapeHintElement.classList.add('show');
                     }
                     this.hintTextElement.classList.remove('show');
                 } else {
-                    // 桌面裝置或行動裝置橫屏：顯示正常提示
+                    // 桌面裝置或觸控裝置橫屏：顯示正常提示
                     this.hintTextElement.classList.add('show');
                     if (this.landscapeHintElement) {
                         this.landscapeHintElement.classList.remove('show');

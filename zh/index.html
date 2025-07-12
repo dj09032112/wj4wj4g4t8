@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <!-- SEO 基礎設定 -->
     <title>視差兔兔 - dj0903</title>
@@ -52,12 +52,12 @@
         
         html {
             /* 📱 確保html在方向變化時正確處理 */
-            width: 100%;
-            height: 100%;
-            min-width: 100%;
-            min-height: 100%;
-            max-width: 100%;
-            max-height: 100%;
+            width: 100vw;
+            height: 100vh;
+            min-width: 100vw;
+            min-height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
             overflow: hidden;
         }
         
@@ -97,23 +97,23 @@
             overflow: hidden;
             font-family: Arial, sans-serif;
             /* 📱 確保body在方向變化時正確處理 */
-            width: 100%;
-            height: 100%;
-            min-width: 100%;
-            min-height: 100%;
-            max-width: 100%;
-            max-height: 100%;
+            width: 100vw;
+            height: 100vh;
+            min-width: 100vw;
+            min-height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
         }
 
         #container {
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             position: relative;
             /* 📱 確保容器在方向變化時正確處理 */
-            min-width: 100%;
-            min-height: 100%;
-            max-width: 100%;
-            max-height: 100%;
+            min-width: 100vw;
+            min-height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
         }
 
         /* 🎭 三層級架構 Z-Index 定義 */
@@ -1085,8 +1085,8 @@
         #canvas {
             display: block;
             z-index: 1000; /* 內容層：最下層 */
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             /* 📱 高解析螢幕支援：確保canvas在高解析螢幕上清晰 */
             image-rendering: -webkit-optimize-contrast;
             image-rendering: -moz-crisp-edges;
@@ -1098,8 +1098,8 @@
         #loading-canvas {
             display: block;
             z-index: 2000; /* 載入層 */
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             /* 📱 高解析螢幕支援：確保載入canvas在高解析螢幕上清晰 */
             image-rendering: -webkit-optimize-contrast;
             image-rendering: -moz-crisp-edges;
@@ -1183,24 +1183,6 @@
                 filter: drop-shadow(0 0 20px rgba(244, 227, 212, 1.0));
                 transform: scale(0.85);
                 transition: all 0.1s ease;
-            }
-        }
-
-        /* 📱 平板全螢幕模式優化：防止方向變化時的視口問題 */
-        @media screen and (min-width: 768px) and (max-width: 1024px) {
-            html, body, #container {
-                width: 100% !important;
-                height: 100% !important;
-                min-width: 100% !important;
-                min-height: 100% !important;
-                max-width: 100% !important;
-                max-height: 100% !important;
-                overflow: hidden !important;
-            }
-            
-            #canvas, #loading-canvas {
-                width: 100% !important;
-                height: 100% !important;
             }
         }
 
@@ -2876,8 +2858,8 @@
                             // 📱 確保canvas元素在DOM中的顯示尺寸正確
                             const canvas = document.getElementById('canvas');
                             if (canvas) {
-                                canvas.style.width = '100%';
-                                canvas.style.height = '100%';
+                                canvas.style.width = window.innerWidth + 'px';
+                                canvas.style.height = window.innerHeight + 'px';
                             }
                             
                             // 同時調整載入場景
@@ -2890,8 +2872,8 @@
                                 // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
                                 const loadingCanvas = document.getElementById('loading-canvas');
                                 if (loadingCanvas) {
-                                    loadingCanvas.style.width = '100%';
-                                    loadingCanvas.style.height = '100%';
+                                    loadingCanvas.style.width = window.innerWidth + 'px';
+                                    loadingCanvas.style.height = window.innerHeight + 'px';
                                 }
                             }
                             
@@ -2996,8 +2978,8 @@
                     // 📱 確保canvas元素在DOM中的顯示尺寸正確
                     const canvas = document.getElementById('canvas');
                     if (canvas) {
-                        canvas.style.width = '100%';
-                        canvas.style.height = '100%';
+                        canvas.style.width = window.innerWidth + 'px';
+                        canvas.style.height = window.innerHeight + 'px';
                     }
                     
                     // 同時調整載入場景
@@ -3010,8 +2992,8 @@
                         // 📱 確保載入canvas元素在DOM中的顯示尺寸正確
                         const loadingCanvas = document.getElementById('loading-canvas');
                         if (loadingCanvas) {
-                            loadingCanvas.style.width = '100%';
-                            loadingCanvas.style.height = '100%';
+                            loadingCanvas.style.width = window.innerWidth + 'px';
+                            loadingCanvas.style.height = window.innerHeight + 'px';
                         }
                     }
 

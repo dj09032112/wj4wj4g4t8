@@ -26,7 +26,7 @@
     "main_view_desktop": "移動滑鼠來轉動視角",
     "main_view_mobile": "轉動裝置來旋轉視角",
     "detail_view": "點擊任意位置返回主視角",
-    "landscape_hint": "請橫向觀看以獲得更好的體驗"
+    "landscape_hint": "請橫向觀看以獲得更沉浸的體驗"
   },
   "errors": {
     "webgl_not_supported": "您的瀏覽器不支援WebGL，請使用現代瀏覽器來檢視此內容。",

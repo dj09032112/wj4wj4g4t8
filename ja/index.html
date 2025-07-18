@@ -1656,24 +1656,42 @@
             }
 
             detectMobile() {
-                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                       window.innerWidth <= 768;
+                // 使用改進的裝置檢測邏輯
+                const userAgent = navigator.userAgent;
+                const isIPad = /iPad/.test(userAgent) || 
+                              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+                              (navigator.platform === 'MacIntel' && /Safari/.test(userAgent) && !/Chrome/.test(userAgent));
+                const isIPhone = /iPhone/.test(userAgent);
+                const isAndroid = /Android/.test(userAgent);
+                const isMobile = isIPad || isIPhone || isAndroid || /webOS|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+                const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const isSafariDesktop = /Safari/.test(userAgent) && !/Chrome/.test(userAgent) && 
+                                       navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+                const isTouchDevice = isMobile || hasTouch || isSafariDesktop;
+                
+                return isTouchDevice || window.innerWidth <= 768;
             }
 
             // 📱 檢測是否為行動裝置直屏（更可靠的檢測）
             isPortraitMobile() {
-                // 方法1：使用User Agent檢測
-                const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                // 使用改進的裝置檢測邏輯
+                const userAgent = navigator.userAgent;
+                const isIPad = /iPad/.test(userAgent) || 
+                              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+                              (navigator.platform === 'MacIntel' && /Safari/.test(userAgent) && !/Chrome/.test(userAgent));
+                const isIPhone = /iPhone/.test(userAgent);
+                const isAndroid = /Android/.test(userAgent);
+                const isMobile = isIPad || isIPhone || isAndroid || /webOS|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+                const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const isSafariDesktop = /Safari/.test(userAgent) && !/Chrome/.test(userAgent) && 
+                                       navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+                const isTouchDevice = isMobile || hasTouch || isSafariDesktop;
                 
                 // 方法2：使用螢幕尺寸檢測（最大寬度1024px且直屏）
                 const isSmallScreen = window.innerWidth <= 1024 && window.innerHeight > window.innerWidth;
                 
-                // 方法3：使用觸控功能檢測
-                const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-                
                 // 綜合判斷：滿足任一條件且為直屏
-                return (isMobileUA || isSmallScreen || (isTouchDevice && window.innerWidth <= 1024)) && 
-                       window.innerHeight > window.innerWidth;
+                return (isTouchDevice || isSmallScreen) && window.innerHeight > window.innerWidth;
             }
 
             // 🎛️ 獲取當前螢幕方向
@@ -1903,14 +1921,24 @@
                 }
                 
                 // 📱 行動裝置按鈕顯示邏輯
-                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                const userAgent = navigator.userAgent;
+                const isIPad = /iPad/.test(userAgent) || 
+                              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+                              (navigator.platform === 'MacIntel' && /Safari/.test(userAgent) && !/Chrome/.test(userAgent));
+                const isIPhone = /iPhone/.test(userAgent);
+                const isAndroid = /Android/.test(userAgent);
+                const isMobile = isIPad || isIPhone || isAndroid || /webOS|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+                const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const isSafariDesktop = /Safari/.test(userAgent) && !/Chrome/.test(userAgent) && 
+                                       navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+                const isTouchDevice = isMobile || hasTouch || isSafariDesktop;
                 const isLandscape = window.innerWidth > window.innerHeight;
                 
                 // 全螢幕按鈕在所有裝置都顯示
                 document.getElementById('fullscreen-button').style.display = 'flex';
                 
-                // 重置視角按鈕在行動裝置上顯示（直式和橫向都顯示）
-                if (isMobile) {
+                // 重置視角按鈕在觸控裝置上顯示（包括 iPad Safari 桌面模式）
+                if (isTouchDevice) {
                     document.getElementById('reset-view-button').style.display = 'flex';
                 } else {
                     document.getElementById('reset-view-button').style.display = 'none';
